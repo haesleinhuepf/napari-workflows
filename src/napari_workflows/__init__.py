@@ -1,8 +1,6 @@
 
 __version__ = "0.0.1"
 
+from ._workflow import Workflow
+from ._workflow import WorkflowManager
 
-
-
-
-from ._function import napari_experimental_provide_function
