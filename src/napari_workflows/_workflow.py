@@ -12,48 +12,95 @@ CURRENT_TIME_FRAME_DATA = "current_time_frame_data"
 
 class Workflow():
     """
-    The Workflow class encapsulates a dictionary that works as dask-task-graph.
+    The Workflow class encapsulates a dictionary that works as dask-task-graph. The task
+    dictionary `str:tuple` spans a graph, because in the tuple, also strings can appear,
+    that might be listed in the dictionary. When retrieving an image result using
+    `get(task_name)`, all tasks are executed recursively that are necessary to retrieve
+    the result of the specified task.
     """
 
     def __init__(self):
+        # We start with an empty workflow with no tasks
         self._tasks = {}
 
     def set(self, name, func_or_data, *args, **kwargs):
+        """
+        Add a task to the workflow
+
+        Parameters
+        ----------
+        name : str
+            name of the task; typically corresponds to the layer name which is produced using the task
+        func_or_data: callable or ndarray
+            the function which produces the image data or the data itself
+        args: list
+        kwargs: dict
+
+        """
+        # If it's not a function, just store the data
         if not callable(func_or_data):
             self._tasks[name] = func_or_data
             return
 
+        # determine defaul parameters and apply them
         sig = inspect.signature(func_or_data)
         bound = sig.bind(*args, **kwargs)
         bound.apply_defaults()
 
+        # Go through arguments and in case it's a callable, remove it
+        # We should only have numbers, strings and images as parameters
         used_args = [value for key, value in bound.arguments.items()]
         for i in range(len(used_args)):
             if callable(used_args[i]):
                 used_args[i] = None
 
+        # Remove None parameters from the end
         while (used_args[-1] is None):
             used_args = used_args[:-1]
 
+        # Store the task
         self._tasks[name] = tuple([func_or_data] + used_args)
 
     def remove(self, name):
+        """
+        Removes a given task from the workflow
+
+        Parameters
+        ----------
+        name : str
+            name of the taks to be removed, typically corresponds to the layer name
+        """
         if name in self._tasks.keys():
             self._tasks.pop(name)
 
     def get(self, name):
+        """
+        Execute a task and all tasks that are necessary to retrieve the result.
+        """
         return dask_get(self._tasks, name)
 
     def get_task(self, name):
+        """
+        Returns the tuple that represents a task.
+        """
         return self._tasks[name]
 
     def set_task(self, name, task):
+        """
+        Replaces a given task.
+        """
         self._tasks[name] = task
 
     def remove_all_except(self, names):
+        """
+        Removes all tasks except those specified by their names.
+
+        Parameters
+        ----------
+        names: list or tuple of str
+        """
         to_remove = [k for k in self._tasks.keys() if k not in names]
         for r in to_remove:
-            print("removing ", r)
             del self._tasks[r]
 
     def roots(self):
@@ -153,6 +200,66 @@ class WorkflowManager():
         worker.yielded.connect(update_layer)
         worker.start()
 
+    def invalidate(self, items):
+        """
+        Invalidates layers with given names so that is it recomputed as soon as there is time for that.
+
+        Parameters
+        ----------
+        items: list or tuple of str
+            List of layer names to be invalidated
+        """
+        for f in items:
+            if _viewer_has_layer(self.viewer, f):
+                layer = self.viewer.layers[f]
+                layer.metadata[METADATA_WORKFLOW_VALID_KEY] = False
+                self.invalidate(self.workflow.followers_of(f))
+
+    def update(self, target_layer, function, *args, **kwargs):
+        """
+        Update the task representing a given layer in the stored workflow by providing
+        the function and parameters that generated the data in the layer.
+
+        Other layers that were produced from the data stored in this layer are invalidated.
+
+        Parameters
+        ----------
+        target_layer: napari.layers.Layer
+        function: callable
+        args: list
+        kwargs: dict
+        """
+        def _layer_name_or_value(value, viewer):
+            layer = _get_layer_from_data(viewer, value)
+            if layer is not None:
+                return layer.name
+            return value
+
+        args = list(args)
+        for i in range(len(args)):
+            args[i] = _layer_name_or_value(args[i], self.viewer)
+        if isinstance(args[-1], napari.Viewer):
+            args = args[:-1]
+        args = tuple(args)
+
+        self.workflow.set(target_layer.name, function, *args, **kwargs)
+
+        self.remove_zombies()
+
+        # set result valid
+        target_layer.metadata[METADATA_WORKFLOW_VALID_KEY] = True
+        self.invalidate(self.workflow.followers_of(target_layer.name))
+
+    def remove_zombies(self):
+        """
+        Removes all tasks from the workflow which have no corresponding layer in the viewer.
+        """
+        layer_names = [layer.name for layer in self.viewer.layers]
+        self.workflow.remove_all_except(layer_names)
+
+    def to_python_code(self):
+        return _generate_python_code(self.workflow, self.viewer)
+
     def _update_invalid_layer(self):
         layer = self._search_first_invalid_layer(self.workflow.roots())
         if layer is None:
@@ -194,49 +301,12 @@ class WorkflowManager():
 
         return None
 
-    def invalidate(self, items):
-        for f in items:
-            if _viewer_has_layer(self.viewer, f):
-                layer = self.viewer.layers[f]
-                layer.metadata[METADATA_WORKFLOW_VALID_KEY] = False
-                self.invalidate(self.workflow.followers_of(f))
-
-
     def _register_events_to_viewer(self, viewer: napari.Viewer):
         viewer.dims.events.current_step.connect(self._slider_updated)
 
         viewer.layers.events.inserted.connect(self._layer_added)
         viewer.layers.events.removed.connect(self._layer_removed)
         viewer.layers.selection.events.changed.connect(self._layer_selection_changed)
-
-    def update(self, target_layer, function, *args, **kwargs):
-        def _layer_name_or_value(value, viewer):
-            layer = _get_layer_from_data(viewer, value)
-            if layer is not None:
-                return layer.name
-            return value
-
-        args = list(args)
-        for i in range(len(args)):
-            args[i] = _layer_name_or_value(args[i], self.viewer)
-        if isinstance(args[-1], napari.Viewer):
-            args = args[:-1]
-        args = tuple(args)
-
-        self.workflow.set(target_layer.name, function, *args, **kwargs)
-
-        self.remove_zombies()
-
-        # set result valid
-        target_layer.metadata[METADATA_WORKFLOW_VALID_KEY] = True
-        self.invalidate(self.workflow.followers_of(target_layer.name))
-
-    def remove_zombies(self):
-        layer_names = [layer.name for layer in self.viewer.layers]
-        self.workflow.remove_all_except(layer_names)
-
-    def to_python_code(self):
-        return _generate_python_code(self.workflow, self.viewer)
 
     def _register_events_to_layer(self, layer):
         layer.events.data.connect(self._layer_data_updated)
@@ -276,7 +346,6 @@ def _viewer_has_layer(viewer, name):
         return layer is not None
     except KeyError:
         return False
-
 
 
 def _get_layer_from_data(viewer, data):
@@ -374,13 +443,14 @@ def _generate_python_code(workflow, viewer):
     return complete_code
 
 
-
 def _layer_invalid(layer):
     try:
         return layer.metadata[METADATA_WORKFLOW_VALID_KEY] == False
     except KeyError:
         return False
 
+
+# todo: this function should live in napari-time-slicer
 def _break_down_4d_to_2d_kwargs(arguments, current_timepoint, viewer):
     for key, value in arguments.items():
         if isinstance(value, np.ndarray) or str(type(value)) in ["<class 'cupy._core.core.ndarray'>",
@@ -393,6 +463,8 @@ def _break_down_4d_to_2d_kwargs(arguments, current_timepoint, viewer):
                 arguments[key] = new_value
                 layer.metadata[CURRENT_TIME_FRAME_DATA] = new_value
 
+
+# todo: this function should live in napari-time-slicer
 def _break_down_4d_to_2d_args(arguments, current_timepoint, viewer):
     for i in range(len(arguments)):
         value = arguments[i]
