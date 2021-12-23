@@ -121,7 +121,7 @@ class Workflow():
 
     def followers_of(self, item):
         """
-        Return all names of images that are produces out of a given image.
+        Return all names of images that are produced out of a given image.
         """
         followers = []
         for result, task in self._tasks.items():
@@ -229,12 +229,6 @@ class WorkflowManager():
         args: list
         kwargs: dict
         """
-        def _layer_name_or_value(value, viewer):
-            layer = _get_layer_from_data(viewer, value)
-            if layer is not None:
-                return layer.name
-            return value
-
         args = list(args)
         for i in range(len(args)):
             args[i] = _layer_name_or_value(args[i], self.viewer)
@@ -340,7 +334,21 @@ class WorkflowManager():
         #print("Layer selection changed", event)
 
 
-def _viewer_has_layer(viewer, name):
+def _viewer_has_layer(viewer: napari.Viewer, name: str):
+    """
+    Checks if a viewer contains a layer named as specified.
+
+    Parameters
+    ----------
+    viewer: napari.Viewer
+    name: str
+
+    Returns
+    -------
+    bool
+        True if a layer with name exists in viewer.
+        False otherwise.
+    """
     try:
         layer = viewer.layers[name]
         return layer is not None
@@ -348,14 +356,15 @@ def _viewer_has_layer(viewer, name):
         return False
 
 
-def _get_layer_from_data(viewer, data):
+def _get_layer_from_data(viewer: napari.Viewer, data):
     """
-    Returns the layer in viewer that has the given data
+    Returns the layer in viewer that has the given data or None if such a layer doesn't exist.
     """
     for layer in viewer.layers:
         if layer.data is data:
             return layer
         try:
+            # todo: this should live in napari-time-slicer
             if layer.metadata[CURRENT_TIME_FRAME_DATA] is data:
                 return layer
         except KeyError:
@@ -363,13 +372,30 @@ def _get_layer_from_data(viewer, data):
     return None
 
 
-def _generate_python_code(workflow, viewer):
+def _generate_python_code(workflow: Workflow, viewer: napari.Viewer):
+    """
+    Takes a Workflow and a viewer an generates python code corresponding to the workflow.
+    Precondition: The used functions must be compatible with Workflows and register their
+    functionality.
+
+    Parameters
+    ----------
+    workflow: Workflow
+        The workflow which should be converted to code.
+    viewer: napari.Viewer
+        The viewer where the workflow was set up.
+
+    Returns
+    -------
+    str
+        python code
+    """
     imports = []
     code = []
 
     roots = workflow.roots()
 
-    def better_str(value):
+    def python_conform_variable_name(value):
         if isinstance(value, str):
             value = value.replace("[", "_") \
                 .replace("]", "_") \
@@ -383,21 +409,45 @@ def _generate_python_code(workflow, viewer):
         return str(value)
 
     def build_output(list_of_items, func_to_follow):
+        """
+        This function is called recursively to generate code that represents the
+        image data flow graph stored in workflow.
+
+        Parameters
+        ----------
+        list_of_items: list[str]
+            layer names that should be computed iteratively
+        func_to_follow: callable
+            This function can be called with a single layer name and will return a list of names that
+            are related to the layer with the given name. This function can for example be
+            `workflow.followers_of()`.
+
+        Returns
+        -------
+        str
+            python code
+        """
         for key in list_of_items:
-            result_name = better_str(key)
+            result_name = python_conform_variable_name(key)
             try:
+                # Retrieve the task that corresponds to this layer
                 task = workflow.get_task(key)
-                print("TASK", task)
+
+                # split it into the used function and corresponding arguments
                 function = task[0]
                 arguments = task[1:]
                 if arguments[-1] is None:
                     arguments = arguments[:-1]
 
+                # determine package and module
                 package_path = function.__module__.split(".")
                 module = package_path[0]
                 new_import = "import " + module
 
+                # load the module
                 loaded_module = __import__(module)
+
+                # if the module has an alias, use this alias in the code
                 try:
                     alias = loaded_module.__common_alias__
                     new_import = new_import + " as " + alias
@@ -409,12 +459,16 @@ def _generate_python_code(workflow, viewer):
                 except:
                     pass
 
+                # add imports
                 if new_import not in imports:
                     imports.append(new_import)
-                arg_str = ", ".join([better_str(a) for a in arguments])
 
+                # put together code that calls the function
+                arg_str = ", ".join([python_conform_variable_name(a) for a in arguments])
                 code.append("# " + function.__name__.replace("_", " "))
                 code.append(f"{result_name} = {module}.{function.__name__}({arg_str})")
+
+                # add code that shows the result in a layer
                 if _viewer_has_layer(viewer, key):
                     if isinstance(viewer.layers[key], napari.layers.Labels):
                         code.append(f"viewer.add_labels({result_name}, name='{key}')")
@@ -428,6 +482,7 @@ def _generate_python_code(workflow, viewer):
     build_output(workflow.roots(), workflow.followers_of)
     from textwrap import dedent
 
+    # put some code in front
     preamble = dedent("""
         import napari
 
@@ -437,6 +492,7 @@ def _generate_python_code(workflow, viewer):
 
     complete_code = "\n".join(imports) + "\n" + preamble + "\n\n" + "\n".join(code) + "\n"
 
+    # format the code PEP8
     import autopep8
     complete_code = autopep8.fix_code(complete_code)
 
@@ -444,14 +500,54 @@ def _generate_python_code(workflow, viewer):
 
 
 def _layer_invalid(layer):
+    """
+    Returns if the data in a given layer is valid or should be re-computed because parameters were changed.
+    """
     try:
         return layer.metadata[METADATA_WORKFLOW_VALID_KEY] == False
     except KeyError:
         return False
 
 
+def _layer_name_or_value(value, viewer: napari.Viewer):
+    """
+    Checks if there is a layer in the viewer where layer.data == value. If so,
+    it returns the name of the layer. Otherwise, it returns value.
+
+    Parameters
+    ----------
+    value: ndarray
+    viewer: napari.Viewer
+
+    Returns
+    -------
+    str or ndarray
+    """
+    layer = _get_layer_from_data(viewer, value)
+    if layer is not None:
+        return layer.name
+    return value
+
+
 # todo: this function should live in napari-time-slicer
 def _break_down_4d_to_2d_kwargs(arguments, current_timepoint, viewer):
+    """
+    Goes through a dictionary of arguments and identifies image data arguments with 4 dimensions.
+    If there is any layer in the viewer where layer.data corresponds to this image, it assumes that
+    the first dimension corresponds to time and will replace this 4D dataset with the 3D image at
+    the given timepoint. If the 3D dataset has only one element in the first dimension, only one slice,
+    it will be replaced by the 2D dataset.
+
+    Parameters
+    ----------
+    arguments: dict
+        dictionary of function arguments
+    current_timepoint: int
+        current timepoint selected in the Viewer
+    viewer: napari.Viewer
+        The viewer is necessary to find out if a string in the argument list corresponds to a layer
+        in the viewer.
+    """
     for key, value in arguments.items():
         if isinstance(value, np.ndarray) or str(type(value)) in ["<class 'cupy._core.core.ndarray'>",
                                                                  "<class 'dask.array.core.Array'>"]:
@@ -466,6 +562,23 @@ def _break_down_4d_to_2d_kwargs(arguments, current_timepoint, viewer):
 
 # todo: this function should live in napari-time-slicer
 def _break_down_4d_to_2d_args(arguments, current_timepoint, viewer):
+    """
+        Goes through a list of arguments and identifies image data arguments with 4 dimensions.
+        If there is any layer in the viewer where layer.data corresponds to this image, it assumes that
+        the first dimension corresponds to time and will replace this 4D dataset with the 3D image at
+        the given timepoint. If the 3D dataset has only one element in the first dimension, only one slice,
+        it will be replaced by the 2D dataset.
+
+        Parameters
+        ----------
+        arguments: list
+            list of function arguments
+        current_timepoint: int
+            current timepoint selected in the Viewer
+        viewer: napari.Viewer
+            The viewer is necessary to find out if a string in the argument list corresponds to a layer
+            in the viewer.
+        """
     for i in range(len(arguments)):
         value = arguments[i]
         if isinstance(value, np.ndarray) or str(type(value)) in ["<class 'cupy._core.core.ndarray'>",
