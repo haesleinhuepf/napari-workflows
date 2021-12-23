@@ -7,32 +7,27 @@
 [![codecov](https://codecov.io/gh/haesleinhuepf/napari-workflows/branch/main/graph/badge.svg)](https://codecov.io/gh/haesleinhuepf/napari-workflows)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-workflows)](https://napari-hub.org/plugins/napari-workflows)
 
-Data structures for managing image processing workflows in napari
+Data structures for managing image processing workflows in napari. There is no userinterface in this 
+repository as it serves as backend. There are multiple front-ends managing the workflows available in
+these napari plugins:
+* [napari_pyclesperanto_assistant](https://github.com/clesperanto/napari_pyclesperanto_assistant)
+* [napari-workflow-optimizer](https://github.com/haesleinhuepf/napari-workflow-optimizer)
+* [napari-workflow-inspector](https://github.com/haesleinhuepf/napari-workflow-inspector)
+
+If you want to learn how these workflows function under the hood, the 
+[demo notebook](https://github.com/haesleinhuepf/napari-workflows/blob/main/docs/demo.ipynb) 
+gives some insights. A public API for extending these workflows with custom functions and other
+napari plugins will be published in spring 2022. Stay tuned.
 
 ----------------------------------
 
-This [napari] plugin was generated with [Cookiecutter] using [@napari]'s [cookiecutter-napari-plugin] template.
-
-<!--
-Don't miss the full getting started guide to set up your new package:
-https://github.com/napari/cookiecutter-napari-plugin#getting-started
-
-and review the napari docs for plugin developers:
-https://napari.org/plugins/stable/index.html
--->
+This repository was generated with [Cookiecutter] using [@napari]'s [cookiecutter-napari-plugin] template.
 
 ## Installation
 
 You can install `napari-workflows` via [pip]:
 
     pip install napari-workflows
-
-
-
-To install latest development version :
-
-    pip install git+https://github.com/haesleinhuepf/napari-workflows.git
-
 
 ## Contributing
 
