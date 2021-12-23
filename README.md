@@ -7,9 +7,9 @@
 [![codecov](https://codecov.io/gh/haesleinhuepf/napari-workflows/branch/main/graph/badge.svg)](https://codecov.io/gh/haesleinhuepf/napari-workflows)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-workflows)](https://napari-hub.org/plugins/napari-workflows)
 
-Data structures for managing image processing workflows in napari. There is no userinterface in this 
-repository as it serves as backend. There are multiple front-ends managing the workflows available in
-these napari plugins:
+This repository contains data structures for managing image processing workflows in napari. 
+There are no user interface in this repository as it serves as backend. 
+Multiple front-ends managing the workflows are available in these napari plugins:
 * [napari_pyclesperanto_assistant](https://github.com/clesperanto/napari_pyclesperanto_assistant)
 * [napari-workflow-optimizer](https://github.com/haesleinhuepf/napari-workflow-optimizer)
 * [napari-workflow-inspector](https://github.com/haesleinhuepf/napari-workflow-inspector)
