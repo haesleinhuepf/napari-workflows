@@ -175,6 +175,13 @@ class WorkflowManager():
         return WorkflowManager.viewers_managers[viewer]
 
     def __init__(self, viewer: napari.Viewer):
+        """
+        Use WorkflowManager.install(viewer) instead of this constructor.
+
+        Parameters
+        ----------
+        viewer: napari.Viewer
+        """
         self.viewer = viewer
         self.workflow = Workflow()
 
@@ -252,37 +259,41 @@ class WorkflowManager():
         self.workflow.remove_all_except(layer_names)
 
     def to_python_code(self):
+        """
+        Output the current workflow in the viewer as python code.
+
+        Returns
+        -------
+        str: python code
+        """
         return _generate_python_code(self.workflow, self.viewer)
 
     def _update_invalid_layer(self):
+        """
+        Searches for the next layer that should be updated because it's invalid.
+        """
         layer = self._search_first_invalid_layer(self.workflow.roots())
         if layer is None:
             return
         try:
-            GUI_KEY = 'magic_gui_widget'
-            self.viewer.layers[layer.name].metadata[GUI_KEY]()
-            #layer.data = np.asarray(self._compute(layer.name))
+            self.viewer.layers[layer.name].source.widget()
             layer.metadata[METADATA_WORKFLOW_VALID_KEY] = True
         except Exception as a:
             print("Error while updating", layer.name, a)
 
-    def _compute(self, name):
-        task = list(self.workflow.get_task(name)).copy()
-        function = task[0]
-        arguments = task[1:]
-        for i in range(len(arguments)):
-            a = arguments[i]
-            if isinstance(a, str):
-                if _viewer_has_layer(self.viewer, a):
-                    arguments[i] = self.viewer.layers[a].data
-
-        if len(self.viewer.dims.current_step) == 4:
-            current_timepoint = self.viewer.dims.current_step[0]
-            _break_down_4d_to_2d_args(arguments, current_timepoint, self.viewer)
-
-        return function(*arguments)
-
     def _search_first_invalid_layer(self, items):
+        """
+        Recursively searches for the next layer that sould be udpated in the graph of tasks.
+
+        Parameters
+        ----------
+        items: list[str]
+            List of task names; typically starts at roots().
+
+        Returns
+        -------
+        str: task/layer name that should be updated
+        """
         for i in items:
             if _viewer_has_layer(self.viewer, i):
                 layer = self.viewer.layers[i]
@@ -296,13 +307,21 @@ class WorkflowManager():
         return None
 
     def _register_events_to_viewer(self, viewer: napari.Viewer):
-        viewer.dims.events.current_step.connect(self._slider_updated)
+        """
+        This function internally registers events at a given viewer so that we can
+        react if something is happening, e.g. layers are added/removed.
+        """
 
+        viewer.dims.events.current_step.connect(self._slider_updated)
         viewer.layers.events.inserted.connect(self._layer_added)
         viewer.layers.events.removed.connect(self._layer_removed)
         viewer.layers.selection.events.changed.connect(self._layer_selection_changed)
 
     def _register_events_to_layer(self, layer):
+        """
+        This function adds events to a layer so that we can react, e.g. in case
+        its data is updated.
+        """
         layer.events.data.connect(self._layer_data_updated)
 
     def _layer_data_updated(self, event):
