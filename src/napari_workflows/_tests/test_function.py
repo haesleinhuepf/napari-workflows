@@ -85,6 +85,7 @@ def test_with_viewer(make_napari_viewer):
 
     # test manager
     manager.update(list(viewer.layers)[1], segment, "Image", 2)
+    manager._update_invalid_layer()
 
     # test code generation
     code = manager.to_python_code()
@@ -93,10 +94,13 @@ def test_with_viewer(make_napari_viewer):
 
     # test event handling
     image_layer.data = image
+    class FakeEvent():
+        def __init__(self, value):
+            self.value = value
+    manager._slider_updated(FakeEvent(viewer.dims.current_step))
 
     # test misc utilities
     from napari_workflows._workflow import _get_layer_from_data, _layer_invalid, _viewer_has_layer, _layer_name_or_value, _break_down_4d_to_2d_args, _break_down_4d_to_2d_kwargs
-
     assert _get_layer_from_data(viewer, image) == image_layer
     assert _layer_invalid(list(viewer.layers)[2])
     assert _viewer_has_layer(viewer, image_layer.name) == True
@@ -111,6 +115,10 @@ def test_with_viewer(make_napari_viewer):
 
     # test removing a layer
     viewer.layers.remove(image_layer)
+
+    # test replacing a task
+    task = workflow.get_task(test_key)
+    workflow.set_task(test_key, task)
 
     # test removing a task
     workflow.remove(test_key)

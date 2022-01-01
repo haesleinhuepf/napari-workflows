@@ -6,7 +6,6 @@
 [![tests](https://github.com/haesleinhuepf/napari-workflows/workflows/tests/badge.svg)](https://github.com/haesleinhuepf/napari-workflows/actions)
 [![codecov](https://codecov.io/gh/haesleinhuepf/napari-workflows/branch/main/graph/badge.svg)](https://codecov.io/gh/haesleinhuepf/napari-workflows)
 [![Development Status](https://img.shields.io/pypi/status/napari-workflows.svg)](https://en.wikipedia.org/wiki/Software_release_life_cycle#Alpha)
-[![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-workflows)](https://napari-hub.org/plugins/napari-workflows)
 
 This repository contains data structures for managing image processing workflows in napari. 
 There are no user interface in this repository as it serves as backend. 
