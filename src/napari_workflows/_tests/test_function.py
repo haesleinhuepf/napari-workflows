@@ -22,17 +22,10 @@ def test_workflows():
     assert len(w._tasks.keys()) == 3
 
 
-def test_with_assistant(make_napari_viewer):
+def test_with_viewer(make_napari_viewer):
     viewer = make_napari_viewer()
 
-    # Add Assistant and configure workflow
-    from napari_pyclesperanto_assistant import Assistant
-    assistant = Assistant(viewer)
-
-    num_dw = len(viewer.window._dock_widgets)
-    viewer.window.add_dock_widget(assistant)
-    assert len(viewer.window._dock_widgets) == num_dw + 1
-
+    import napari
     import numpy as np
     image = np.asarray([
         [0, 0, 0, 0, 0, 0, 0],
@@ -46,15 +39,27 @@ def test_with_assistant(make_napari_viewer):
 
     image_layer = viewer.add_image(image)
 
-    from napari_pyclesperanto_assistant._categories import CATEGORIES
-    assistant._activate(CATEGORIES.get("Label"))
+    def segment(image:napari.types.ImageData, sigma:float=5)->napari.types.LabelsData:
+        return image > 0.5
+
+    def refine(image:napari.types.LabelsData) -> napari.types.LabelsData:
+        return image
 
     from napari_workflows import WorkflowManager
     manager = WorkflowManager.install(viewer)
 
+    from napari_tools_menu import make_gui
+    gui = make_gui(segment, viewer, auto_call=True)
+    viewer.window.add_dock_widget(gui)
+    # invoke execution / workflow update
+    gui.sigma.value = gui.sigma.value
+
     workflow = manager.workflow
 
-    test_key_root = workflow.roots()[0]
+    print(workflow)
+    print(viewer.layers)
+
+    test_key_root = image_layer.name
     test_key = workflow.followers_of(test_key_root)[0]
 
     # test analysing workflow
@@ -62,7 +67,10 @@ def test_with_assistant(make_napari_viewer):
     assert len(workflow.roots()) == 1
 
     # add one more step
-    assistant._activate(CATEGORIES.get("Process labels"))
+    gui = make_gui(refine, viewer, auto_call=True)
+    viewer.window.add_dock_widget(gui)
+    # invoke execution / workflow update
+    gui.image.value = gui.image.value
 
     # test analysing workflow
     assert len(workflow._tasks.keys()) == 2
@@ -76,12 +84,12 @@ def test_with_assistant(make_napari_viewer):
     assert len(workflow.leafs()) == 1
 
     # test manager
-    import pyclesperanto_prototype as cle
-    manager.update(list(viewer.layers)[1], cle.voronoi_otsu_labeling, "Image", 2, 2)
+    manager.update(list(viewer.layers)[1], segment, "Image", 2)
 
+    # test code generation
     code = manager.to_python_code()
     print(code)
-    assert 18 < len(code.split("\n")) < 22
+    assert 14 < len(code.split("\n")) < 18
 
     # test event handling
     image_layer.data = image
