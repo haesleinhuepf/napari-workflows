@@ -422,7 +422,11 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer):
                 .replace("(", "_") \
                 .replace(")", "_") \
                 .replace(".", "_") \
-                .replace("-", "_")
+                .replace("-", "_")\
+                .replace(":", "_")\
+                .replace(";", "_")\
+                .replace(",", "_")\
+                .replace(".", "_")
             if value[0] in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
                 value = "img_" + value
         return str(value)
