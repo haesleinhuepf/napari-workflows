@@ -1,0 +1,12 @@
+!!python/object:napari_workflows._workflow.Workflow
+_tasks:
+  denoised: !!python/tuple
+  - !!python/name:skimage._shared.filters.gaussian ''
+  - input
+  - 2
+  - null
+  - nearest
+  - 0
+  - null
+  - false
+  - 4.0
