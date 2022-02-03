@@ -134,19 +134,20 @@ def test_save_load():
     from skimage.filters import threshold_otsu, gaussian
     from skimage.measure import label
 
+    # setup workflow
     w = Workflow()
-
-    # define denoising
     w.set("denoised", gaussian, "input", sigma=2)
-
     w.set("labeled", label, "binarized")
     
+    # save workflow
     from napari_workflows._io_yaml_v1 import save_workflow, load_workflow
     filename = "test.yaml"
     save_workflow(filename, w)
     
+    # reload workflow
     w1 = load_workflow(filename)
     
+    # check if keys are correct
     keys = list(w1._tasks.keys())
     assert keys[0] == "denoised"
     assert keys[1] == "labeled"
@@ -157,16 +158,16 @@ def test_loaded_workflow_is_executable():
     from skimage.measure import label
     import numpy as np
 
+    # setup workflow
     w = Workflow()
-
-    # define denoising
     w.set("denoised", gaussian, "input", sigma=2)
     
+    # save worklow
     from napari_workflows._io_yaml_v1 import save_workflow, load_workflow
     filename = "test.yaml"
     save_workflow(filename, w)
     
+    # load and execute
     w1 = load_workflow(filename)
-
     w1.set("input", np.random.random((10,10)))
     w1.get("denoised")
