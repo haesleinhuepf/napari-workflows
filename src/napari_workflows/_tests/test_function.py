@@ -128,3 +128,26 @@ def test_with_viewer(make_napari_viewer):
     workflow.remove_all_except(test_key)
     assert len(workflow._tasks.keys()) == 0
 
+
+def test_save_load():
+    from napari_workflows import Workflow
+    from skimage.filters import threshold_otsu, gaussian
+    from skimage.measure import label
+
+    w = Workflow()
+
+    # define denoising
+    w.set("denoised", gaussian, "input", sigma=2)
+
+    w.set("labeled", label, "binarized")
+    
+    from napari_workflows import save_workflow, load_workflow
+    filename = "test.yaml"
+    save_workflow(filename, w)
+    
+    w1 = load_workflow(filename)
+    
+    keys = list(w1._tasks.keys())
+    assert keys[0] == "denoised"
+    assert keys[1] == "labeled"
+    
