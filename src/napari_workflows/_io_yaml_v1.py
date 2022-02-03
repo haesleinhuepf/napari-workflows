@@ -1,6 +1,6 @@
 def save_workflow(workflow, filename):
     from yaml import dump
-    with open(filename + '.yaml', 'w') as stream:
+    with open(filename, 'w') as stream:
         dump(workflow,stream)
 
 def load_workflow(filename):
