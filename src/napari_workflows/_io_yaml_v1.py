@@ -1,7 +1,7 @@
 from ._workflow import Workflow
 import numpy as np
 
-def save_workflow(workflow, filename):
+def save_workflow(filename:str, workflow:Workflow):
     # Filter out workflow steps that do not represent a processing step
     workflow_to_save = Workflow()
     for key, value in workflow._tasks.items():
@@ -13,7 +13,7 @@ def save_workflow(workflow, filename):
     with open(filename, 'w') as stream:
         dump(workflow_to_save,stream)
 
-def load_workflow(filename):
+def load_workflow(filename:str) -> Workflow:
     from yaml import unsafe_load
     with open(filename, "rb") as stream:
         return unsafe_load(stream)
