@@ -1,5 +1,8 @@
 from ._workflow import Workflow
 import numpy as np
+import pyclesperanto_prototype as cle
+import dask.array as da
+
 
 def save_workflow(filename:str, workflow:Workflow):
     """Save a workflow to a file on disk.
@@ -12,7 +15,7 @@ def save_workflow(filename:str, workflow:Workflow):
     # Filter out workflow steps that do not represent a processing step
     workflow_to_save = Workflow()
     for key, value in workflow._tasks.items():
-        if not isinstance(value[0], np.ndarray):
+        if not isinstance(value, (da.core.Array,np.ndarray,cle._tier0._pycl.OCLArray)):
             workflow_to_save.set(key, value)
     
     # Save the remaining steps to disk
