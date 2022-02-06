@@ -12,7 +12,7 @@ def save_workflow(filename:str, workflow:Workflow):
     # Filter out workflow steps that do not represent a processing step
     workflow_to_save = Workflow()
     for key, value in workflow._tasks.items():
-        if not hasattr(value[0], "shape"): 
+        if callable(value[0]): 
             workflow_to_save.set(key, value)
     
     # Save the remaining steps to disk
