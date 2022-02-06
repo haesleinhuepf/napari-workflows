@@ -70,7 +70,8 @@ def test_with_viewer(make_napari_viewer):
     gui = make_gui(refine, viewer, auto_call=True)
     viewer.window.add_dock_widget(gui)
     # invoke execution / workflow update
-    gui.image.value = gui.image.value
+    #gui.image.value = gui.image.value
+    gui()
 
     # test analysing workflow
     assert len(workflow._tasks.keys()) == 2
