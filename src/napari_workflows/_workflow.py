@@ -1,4 +1,5 @@
 import napari
+from napari import Viewer
 import numpy as np
 import inspect
 from dask.threaded import get as dask_get
@@ -150,7 +151,11 @@ class Workflow():
     def __str__(self):
         out = "Workflow:\n"
         for result, task in self._tasks.items():
-            out = out + result + " <- "+ str(task) + "\n"
+            # Define new Parameters to print that don't include the napari viewer
+            # This makes printing the workflow more readable
+            print_params = tuple([param for param in task if not isinstance(param,Viewer)])
+
+            out = out + result + " <- "+ str(print_params) + "\n"
         return out
 
 
