@@ -347,7 +347,7 @@ class WorkflowManager():
 
     def _slider_updated(self, event):
         slider = event.value
-        print("Slider updated", event.value, type(event.value))
+        # print("Slider updated", event.value, type(event.value))
         if len(slider) == 4: # a time-slider exists
             for l in self.viewer.layers:
                 if len(l.data.shape) == 4:
