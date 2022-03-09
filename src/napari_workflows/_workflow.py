@@ -148,6 +148,15 @@ class Workflow():
         """
         return [l for l in self._tasks.keys() if len(self.followers_of(l)) == 0]
 
+    def remove_viewers(self):
+        """
+        Removes all Viewer objects from the _tasks tupules, which cause errors 
+        when saving workflows.
+        """
+        for key,value in self._tasks.items():
+            viewer_removed = tuple([entry for entry in value if not isinstance(entry, Viewer)])
+            self._tasks[key] = viewer_removed
+
     def __str__(self):
         out = "Workflow:\n"
         for result, task in self._tasks.items():
