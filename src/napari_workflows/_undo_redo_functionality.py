@@ -40,12 +40,7 @@ class Undo_redo_controller:
         self.undo_stack.append(action)
 
 
-class update_workflow_step:
-    '''target_layer: 
-    function: function
-    args: 
-    kwargs: **kwargs
-    '''
+class Update_workflow_step:
     def __init__(self,workflow: Workflow, viewer: Viewer, target_layer, function: function, *args, **kwargs) -> None:
         self.workflow = workflow
         self.viewer = viewer
@@ -60,6 +55,7 @@ class update_workflow_step:
             self.old_task = None
 
     def execute(self):
+        # basically what the update function was before
         args = list(self.args)
         for i in range(len(args)):
             args[i] = _layer_name_or_value(args[i], self.viewer)
@@ -68,11 +64,20 @@ class update_workflow_step:
         args = tuple(args)
         self.workflow.set(self.target_layer.name, function, *args, **self.kwargs)
 
+        # plus the remove zombies function
+        layer_names = [layer.name for layer in self.viewer.layers]
+        self.removed_layers = {k:v for k,v in self.workflow._tasks.items() if k not in layer_names}
+        self.workflow.remove_all_except(layer_names)
+
     def undo(self):
         # set the workflow step to what it was before
         # delete the new wf step if one was created
-        if not self.old_function:
+        if not self.old_task:
             self.workflow.remove(self.target_layer.name)
+
+            # remove zombies undone
+            for k, v in self.removed_layers.items():
+                self.workflow._tasks[k] = v
 
         # change the values to the old ones otherwise
         else:
@@ -87,3 +92,29 @@ class update_workflow_step:
             args = args[:-1]
         args = tuple(args)
         self.workflow.set(self.target_layer.name, function, *args, **self.kwargs)
+
+        # remove zombies
+        layer_names = [layer.name for layer in self.viewer.layers]
+        self.removed_layers = {k:v for k,v in self.workflow._tasks.items() if k not in layer_names}
+        self.workflow.remove_all_except(layer_names)
+
+
+class Layer_removed:
+    def __init__(self, workflow: Workflow, name: str) -> None:
+        self.workflow = workflow
+        self.name = name
+        try:
+            self.old_task = workflow._tasks[name]
+        except KeyError:
+            self.old_task = None
+
+    def execute(self) -> None:
+        self.workflow.remove(self.name)
+    
+    def undo(self):
+        if not self.old_task:
+            return
+        self.workflow._tasks[self.name] = self.old_task
+
+    def redo(self):
+        self.workflow.remove(self.name)
