@@ -5,7 +5,7 @@ import inspect
 from dask.threaded import get as dask_get
 from napari._qt.qthreading import thread_worker
 import time
-from _undo_redo_functionality import Undo_redo_controller
+from _undo_redo_functionality import Undo_redo_controller, Update_workflow_step, Layer_removed
 
 METADATA_WORKFLOW_VALID_KEY = "workflow_valid"
 
@@ -243,28 +243,22 @@ class WorkflowManager():
         args: list
         kwargs: dict
         """
-        args = list(args)
-        for i in range(len(args)):
-            args[i] = _layer_name_or_value(args[i], self.viewer)
-        if isinstance(args[-1], napari.Viewer):
-            args = args[:-1]
-        args = tuple(args)
-
-        self.workflow.set(target_layer.name, function, *args, **kwargs)
-
-        self.remove_zombies()
+        self.undo_redo_controller.execute(Update_workflow_step(
+            self.workflow,
+            self.viewer,
+            target_layer,
+            function,
+            *args,
+            **kwargs
+            )
+        )
 
         # set result valid
         target_layer.metadata[METADATA_WORKFLOW_VALID_KEY] = True
         self.invalidate(self.workflow.followers_of(target_layer.name))
 
     def remove_zombies(self):
-        # TODO implement with controller
-        """
-        Removes all tasks from the workflow which have no corresponding layer in the viewer.
-        """
-        layer_names = [layer.name for layer in self.viewer.layers]
-        self.workflow.remove_all_except(layer_names)
+        self.undo_redo_controller.execute(R)
 
     def to_python_code(self):
         """
