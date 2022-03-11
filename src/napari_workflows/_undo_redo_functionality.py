@@ -83,6 +83,10 @@ class Update_workflow_step:
         else:
             self.workflow[self.target_layer.name] = self.old_task
 
+            # remove zombies undone
+            for k, v in self.removed_layers.items():
+                self.workflow._tasks[k] = v
+
     def redo(self):
         #for now just the copied execute
         args = list(self.args)
@@ -98,6 +102,25 @@ class Update_workflow_step:
         self.removed_layers = {k:v for k,v in self.workflow._tasks.items() if k not in layer_names}
         self.workflow.remove_all_except(layer_names)
 
+class Remove_zombies:
+    def __init__(self, workflow: Workflow, viewer = Viewer) -> None:
+        self.workflow = workflow
+        self.viewer = viewer
+
+    def execute(self):
+        layer_names = [layer.name for layer in self.viewer.layers]
+        self.removed_layers = {k:v for k,v in self.workflow._tasks.items() if k not in layer_names}
+        self.workflow.remove_all_except(layer_names)
+
+    def undo(self):
+        for k, v in self.removed_layers.items():
+            self.workflow._tasks[k] = v
+
+    def redo(self):
+        #for now just the copied execute
+        layer_names = [layer.name for layer in self.viewer.layers]
+        self.removed_layers = {k:v for k,v in self.workflow._tasks.items() if k not in layer_names}
+        self.workflow.remove_all_except(layer_names)
 
 class Layer_removed:
     def __init__(self, workflow: Workflow, name: str) -> None:
