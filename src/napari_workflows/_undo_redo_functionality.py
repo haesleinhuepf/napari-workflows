@@ -1,9 +1,7 @@
 from dataclasses import dataclass
 from typing import Protocol
-from _workflow import Workflow
+from ._workflow import Workflow, _layer_name_or_value
 from napari import Viewer
-from _workflow import _layer_name_or_value
-
 class Action(Protocol):
     def execute() -> None:
         ...

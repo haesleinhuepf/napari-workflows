@@ -5,7 +5,7 @@ import inspect
 from dask.threaded import get as dask_get
 from napari._qt.qthreading import thread_worker
 import time
-from _undo_redo_functionality import Undo_redo_controller, Update_workflow_step, Layer_removed, Remove_zombies
+from ._undo_redo_functionality import Undo_redo_controller, Update_workflow_step, Layer_removed, Remove_zombies
 
 METADATA_WORKFLOW_VALID_KEY = "workflow_valid"
 
