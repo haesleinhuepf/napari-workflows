@@ -5,7 +5,7 @@ import inspect
 from dask.threaded import get as dask_get
 from napari._qt.qthreading import thread_worker
 import time
-from ._undo_redo_functionality import Undo_redo_controller, Update_workflow_step, Layer_removed, Remove_zombies
+
 
 METADATA_WORKFLOW_VALID_KEY = "workflow_valid"
 
@@ -181,6 +181,7 @@ class WorkflowManager():
         return WorkflowManager.viewers_managers[viewer]
 
     def __init__(self, viewer: napari.Viewer):
+        from ._undo_redo_functionality import Undo_redo_controller
         """
         Use WorkflowManager.install(viewer) instead of this constructor.
 
@@ -229,7 +230,6 @@ class WorkflowManager():
                 self.invalidate(self.workflow.followers_of(f))
 
     def update(self, target_layer, function, *args, **kwargs):
-        
         """
         Update the task representing a given layer in the stored workflow by providing
         the function and parameters that generated the data in the layer.
@@ -243,6 +243,7 @@ class WorkflowManager():
         args: list
         kwargs: dict
         """
+        from ._undo_redo_functionality import Update_workflow_step
         self.undo_redo_controller.execute(Update_workflow_step(
             self.workflow,
             self.viewer,
@@ -258,6 +259,7 @@ class WorkflowManager():
         self.invalidate(self.workflow.followers_of(target_layer.name))
 
     def remove_zombies(self):
+        from ._undo_redo_functionality import Remove_zombies
         self.undo_redo_controller.execute(Remove_zombies(
             self.workflow,
             self.viewer
@@ -343,6 +345,7 @@ class WorkflowManager():
         self._register_events_to_layer(event.value)
 
     def _layer_removed(self, event):
+        from ._undo_redo_functionality import Layer_removed
         #print("Layer removed", event.value, type(event.value))
         self.undo_redo_controller.execute(Layer_removed(
             self.workflow,

@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 from ._workflow import Workflow, _layer_name_or_value
 from napari import Viewer
@@ -15,8 +15,8 @@ class Action(Protocol):
 
 @dataclass
 class Undo_redo_controller:
-    undo_stack: list = []
-    redo_stack: list = []
+    undo_stack: list[Action] = field(default_factory = list)
+    redo_stack: list[Action] = field(default_factory = list)
 
     def execute(self,action: Action) -> None:
         action.execute()
@@ -39,7 +39,7 @@ class Undo_redo_controller:
 
 
 class Update_workflow_step:
-    def __init__(self,workflow: Workflow, viewer: Viewer, target_layer, function: function, *args, **kwargs) -> None:
+    def __init__(self,workflow: Workflow, viewer: Viewer, target_layer, function, *args, **kwargs) -> None:
         self.workflow = workflow
         self.viewer = viewer
         self.target_layer = target_layer
@@ -60,7 +60,7 @@ class Update_workflow_step:
         if isinstance(args[-1], Viewer):
             args = args[:-1]
         args = tuple(args)
-        self.workflow.set(self.target_layer.name, function, *args, **self.kwargs)
+        self.workflow.set(self.target_layer.name, self.function, *args, **self.kwargs)
 
         # plus the remove zombies function
         layer_names = [layer.name for layer in self.viewer.layers]
