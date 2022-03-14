@@ -79,7 +79,7 @@ class Update_workflow_step:
 
         # change the values to the old ones otherwise
         else:
-            self.workflow[self.target_layer.name] = self.old_task
+            self.workflow._tasks[self.target_layer.name] = self.old_task
 
             # remove zombies undone
             for k, v in self.removed_layers.items():
