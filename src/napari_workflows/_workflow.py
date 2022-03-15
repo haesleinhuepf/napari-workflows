@@ -245,10 +245,10 @@ class WorkflowManager():
         """
         from ._undo_redo_functionality import Update_workflow_step
         self.undo_redo_controller.execute(Update_workflow_step(
-            self.workflow,
-            self.viewer,
-            target_layer,
-            function,
+            workflow = self.workflow,
+            viewer = self.viewer,
+            target_layer = target_layer,
+            function = function,
             *args,
             **kwargs
             )
