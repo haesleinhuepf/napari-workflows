@@ -244,13 +244,16 @@ class WorkflowManager():
         kwargs: dict
         """
         from ._undo_redo_functionality import Update_workflow_step
+        # TODO remove viewer from kwargs
+        kwargs = {k:v for k,v in kwargs.items() if k != 'viewer'}
+
         self.undo_redo_controller.execute(Update_workflow_step(
-            workflow = self.workflow,
-            viewer = self.viewer,
-            target_layer = target_layer,
-            function = function,
+            self.workflow,
+            self.viewer,
+            target_layer,
+            function,
             *args,
-            **kwargs
+            **kwargs,
             )
         )
 

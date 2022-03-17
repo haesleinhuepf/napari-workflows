@@ -1,3 +1,7 @@
+# most code modified from Arjan codes github library:
+# https://github.com/ArjanCodes/2021-command-undo-redo/blob/main/LICENSE
+# TODO mention it in case of implementation (MIT LICENSE)
+
 from dataclasses import dataclass, field
 from typing import Protocol
 from ._workflow import Workflow, _layer_name_or_value
@@ -26,21 +30,21 @@ class Undo_redo_controller:
 
     def undo(self) -> None:
         if not self.undo_stack:
-            return
+            return True
         action = self.undo_stack.pop()
         action.undo()
         self.redo_stack.append(action)
 
     def redo(self) -> None:
         if not self.redo_stack:
-            return
+            return True
         action = self.redo_stack.pop()
         action.redo()
         self.undo_stack.append(action)
 
 
 class Update_workflow_step:
-    def __init__(self,workflow: Workflow, viewer: Viewer, target_layer, function, *args, **kwargs) -> None:
+    def __init__(self, workflow: Workflow, viewer: Viewer, target_layer, function, *args, **kwargs) -> None:
         self.workflow = workflow
         self.viewer = viewer
         self.target_layer = target_layer
@@ -100,6 +104,10 @@ class Update_workflow_step:
         layer_names = [layer.name for layer in self.viewer.layers]
         self.removed_layers = {k:v for k,v in self.workflow._tasks.items() if k not in layer_names}
         self.workflow.remove_all_except(layer_names)
+    
+    def __str__(self):
+        string = f'Function: {self.function.__name__}\n    args: {self.args}\n  kwargs: {self.kwargs}'
+        return string
 
 class Remove_zombies:
     def __init__(self, workflow: Workflow, viewer = Viewer) -> None:
