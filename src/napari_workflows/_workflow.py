@@ -149,6 +149,12 @@ class Workflow():
         """
         return [l for l in self._tasks.keys() if len(self.followers_of(l)) == 0]
 
+    def clear(self):
+        """
+        Removes all workflow steps stored in self._tasks
+        """
+        self._tasks = {}
+
     def __str__(self):
         out = "Workflow:\n"
         for result, task in self._tasks.items():
