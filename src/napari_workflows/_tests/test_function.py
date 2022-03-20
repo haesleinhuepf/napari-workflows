@@ -65,6 +65,7 @@ def test_with_viewer(make_napari_viewer):
     # test analysing workflow
     assert len(workflow._tasks.keys()) == 1
     assert len(workflow.roots()) == 1
+    assert len(workflow.root_functions()) == 1
 
     # add one more step
     gui = make_gui(refine, viewer, auto_call=True)
@@ -76,6 +77,7 @@ def test_with_viewer(make_napari_viewer):
     # test analysing workflow
     assert len(workflow._tasks.keys()) == 2
     assert len(workflow.roots()) == 1
+    assert len(workflow.root_functions()) == 1
 
     print(workflow)
 
