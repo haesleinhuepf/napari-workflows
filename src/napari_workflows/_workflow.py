@@ -417,7 +417,10 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer):
     imports = []
     code = []
 
-    roots = workflow.roots()
+    import dask
+    order = dask.order.order(workflow._tasks)
+
+    roots = order.keys()
 
     def python_conform_variable_name(value):
         if isinstance(value, str):
@@ -436,19 +439,17 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer):
                 value = "img_" + value
         return str(value)
 
-    def build_output(list_of_items, func_to_follow):
+    def build_output(list_of_items):
         """
-        This function is called recursively to generate code that represents the
-        image data flow graph stored in workflow.
+        This function is called to generate code that represents the
+        image data flow graph stored in workflow. The graph should be
+        sorted in advance, e.g. using dask.order.order() and the resulting
+        sorted list of keys can be passed here.
 
         Parameters
         ----------
         list_of_items: list[str]
             layer names that should be computed iteratively
-        func_to_follow: callable
-            This function can be called with a single layer name and will return a list of names that
-            are related to the layer with the given name. This function can for example be
-            `workflow.followers_of()`.
 
         Returns
         -------
@@ -502,12 +503,20 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer):
                         code.append(f"viewer.add_labels({result_name}, name='{key}')")
                     else:
                         code.append(f"viewer.add_image({result_name}, name='{key}')")
+                    code.append("")
             except KeyError:
-                code.append(f"{result_name} = viewer.layers['{key}'].data")
-            code.append("")
-            build_output(func_to_follow(key), func_to_follow)
+                try:
+                    viewer.layers[key]
+                    code.append(f"{result_name} = viewer.layers['{key}'].data")
+                    code.append("")
+                except KeyError:
+                    # The layer doesn't exist
+                    pass
 
-    build_output(workflow.roots(), workflow.followers_of)
+
+    build_output(workflow.roots())
+    build_output(roots)
+
     from textwrap import dedent
 
     # put some code in front
