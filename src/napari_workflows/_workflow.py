@@ -495,7 +495,8 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer):
 
                 # put together code that calls the function
                 arg_str = ", ".join([python_conform_variable_name(a) for a in arguments])
-                code.append("# " + function.__name__.replace("_", " "))
+                # jupytext will render "# ##" as an h2 header in ipynb
+                code.append("# ## " + function.__name__.replace("_", " ") + "\n")
                 code.append(f"{result_name} = {module}.{function.__name__}({arg_str})")
 
                 # add code that shows the result in a layer
