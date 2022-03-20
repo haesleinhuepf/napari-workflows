@@ -120,16 +120,17 @@ class Workflow():
                             origins.append(source)
         return origins
 
-    def get_root_functions(self):
+    def root_functions(self):
         """
         Return a list of workflow steps that have root images as an input
         """
         roots = self.roots()
         wf_step_with_rootinput = []
+        keys_with_functions = [key for key, task in self._tasks.items() if callable(task[0])]
         for result, task in self._tasks.items():
                 for source in task:
-                    if isinstance(source, str):
-                        if source in roots:
+                    if source in roots:
+                        if source in keys_with_functions:
                             wf_step_with_rootinput.append(result)
         return wf_step_with_rootinput
 
