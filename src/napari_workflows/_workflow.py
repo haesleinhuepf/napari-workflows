@@ -422,22 +422,23 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer):
 
     roots = order.keys()
 
+    image_variable_names = {}
+
     def python_conform_variable_name(value):
         if isinstance(value, str):
-            value = value.replace("[", "_") \
-                .replace("]", "_") \
-                .replace(" ", "_") \
-                .replace("(", "_") \
-                .replace(")", "_") \
-                .replace(".", "_") \
-                .replace("-", "_")\
-                .replace(":", "_")\
-                .replace(";", "_")\
-                .replace(",", "_")\
-                .replace(".", "_")
-            if value[0] in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
-                value = "img_" + value
-        return str(value)
+            if value not in image_variable_names:
+                # Make a short and readable variable name, e.g. turn a layer
+                # "Resut of Gaussian blur" into "image1_gb".
+                temp = value
+                temp = temp.replace("Result of ", "")
+                temp = temp.replace(" result", "")
+                temp = "".join([t[0] for t in temp.split("_")])
+                new_name = "image" + str(len(image_variable_names)) + "_" + temp
+                image_variable_names[value] = new_name
+
+            return image_variable_names[value]
+        else:
+            return str(value)
 
     def build_output(list_of_items):
         """
