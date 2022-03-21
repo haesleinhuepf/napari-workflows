@@ -51,14 +51,12 @@ class Undo_redo_controller:
     undo_stack: list[Action] = field(default_factory = list)
     redo_stack: list[Action] = field(default_factory = list)
     freeze: bool = False
-    freeze_stacks: bool = False
 
     def execute(self,action: Action) -> None:
         if not self.freeze:
             action.execute()
-            if not self.freeze_stacks:
-                self.redo_stack.clear()
-                self.undo_stack.append(action)
+            self.redo_stack.clear()
+            self.undo_stack.append(action)
 
     def undo(self) -> None:
         if not self.undo_stack:
@@ -66,8 +64,7 @@ class Undo_redo_controller:
         if not self.freeze:
             action = self.undo_stack.pop()
             action.undo()
-            if not self.freeze_stacks:
-                self.redo_stack.append(action)
+            self.redo_stack.append(action)
 
     def redo(self) -> None:
         if not self.redo_stack:
@@ -75,8 +72,7 @@ class Undo_redo_controller:
         if not self.freeze:
             action = self.redo_stack.pop()
             action.redo()
-            if not self.freeze_stacks:
-                self.undo_stack.append(action)
+            self.undo_stack.append(action)
 
 
 class Update_workflow_step:
