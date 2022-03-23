@@ -202,3 +202,35 @@ class Layer_removed:
 
     def redo(self):
         self.workflow.remove(self.name)
+
+# old update func for reference:
+import napari
+METADATA_WORKFLOW_VALID_KEY = "workflow_valid"
+def update(self, target_layer, function, *args, **kwargs):
+    """
+    Update the task representing a given layer in the stored workflow by providing
+    the function and parameters that generated the data in the layer.
+
+    Other layers that were produced from the data stored in this layer are invalidated.
+
+    Parameters
+    ----------
+    target_layer: napari.layers.Layer
+    function: callable
+    args: list
+    kwargs: dict
+    """
+    args = list(args)
+    for i in range(len(args)):
+        args[i] = _layer_name_or_value(args[i], self.viewer)
+    if isinstance(args[-1], napari.Viewer):
+        args = args[:-1]
+    args = tuple(args)
+
+    self.workflow.set(target_layer.name, function, *args, **kwargs)
+
+    self.remove_zombies()
+
+    # set result valid
+    target_layer.metadata[METADATA_WORKFLOW_VALID_KEY] = True
+    self.invalidate(self.workflow.followers_of(target_layer.name))
