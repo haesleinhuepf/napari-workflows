@@ -250,9 +250,10 @@ class WorkflowManager():
         kwargs: dict
         """
         from ._undo_redo_functionality import Update_workflow_step
-        # TODO remove viewer from kwargs
-        kwargs = {k:v for k,v in kwargs.items() if k != 'viewer'}
-
+        # TODO remove viewer from args
+        print(f'args: {args}')
+        kwargs = {k:v for k,v in kwargs.items() if not isinstance(v, Viewer)}
+        print(f'kwargs: {kwargs}')
         self.undo_redo_controller.execute(Update_workflow_step(
             self.workflow,
             self.viewer,
