@@ -249,7 +249,7 @@ class WorkflowManager():
         args: list
         kwargs: dict
         """
-        from ._undo_redo_functionality import Update_workflow_step
+        from ._workflowmanager_commands import Update_workflow_step
         kwargs = {k:v for k,v in kwargs.items() if not ((isinstance(v, Viewer)) or (k == 'viewer'))}
 
         self.undo_redo_controller.execute(Update_workflow_step(
@@ -267,7 +267,7 @@ class WorkflowManager():
         self.invalidate(self.workflow.followers_of(target_layer.name))
 
     def remove_zombies(self):
-        from ._undo_redo_functionality import Remove_zombies
+        from ._workflowmanager_commands import Remove_zombies
         self.undo_redo_controller.execute(Remove_zombies(
             self.workflow,
             self.viewer
@@ -353,7 +353,7 @@ class WorkflowManager():
         self._register_events_to_layer(event.value)
 
     def _layer_removed(self, event):
-        from ._undo_redo_functionality import Layer_removed
+        from ._workflowmanager_commands import Layer_removed
         #print("Layer removed", event.value, type(event.value))
         self.undo_redo_controller.execute(Layer_removed(
             self.workflow,
@@ -542,17 +542,6 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer):
 
     return complete_code
 
-
-def _layer_invalid(layer):
-    """
-    Returns if the data in a given layer is valid or should be re-computed because parameters were changed.
-    """
-    try:
-        return layer.metadata[METADATA_WORKFLOW_VALID_KEY] == False
-    except KeyError:
-        return False
-
-
 def _layer_name_or_value(value, viewer: napari.Viewer):
     """
     Checks if there is a layer in the viewer where layer.data == value. If so,
@@ -571,6 +560,15 @@ def _layer_name_or_value(value, viewer: napari.Viewer):
     if layer is not None:
         return layer.name
     return value
+
+def _layer_invalid(layer):
+    """
+    Returns if the data in a given layer is valid or should be re-computed because parameters were changed.
+    """
+    try:
+        return layer.metadata[METADATA_WORKFLOW_VALID_KEY] == False
+    except KeyError:
+        return False
 
 
 # todo: this function should live in napari-time-slicer
