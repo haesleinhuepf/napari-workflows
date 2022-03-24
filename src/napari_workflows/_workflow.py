@@ -39,6 +39,12 @@ class Workflow():
         kwargs: dict
 
         """
+        # TODO remove prints for testing
+
+        print(f'set workflow step: {name}')
+        print(f'    args: {[arg for arg in args if not isinstance(arg, np.ndarray)]}')
+        print(f'  kwargs: {kwargs}')
+
         # If it's not a function, just store the data
         if not callable(func_or_data):
             self._tasks[name] = func_or_data
@@ -197,7 +203,7 @@ class WorkflowManager():
         """
         self.viewer = viewer
         self.workflow = Workflow()
-        self.undo_redo_controller = Undo_redo_controller()
+        self.undo_redo_controller = Undo_redo_controller(self.workflow)
         self._register_events_to_viewer(viewer)
 
         # The thread workwer will run in the background and check if images have to be recomputed.

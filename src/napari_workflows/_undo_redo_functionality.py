@@ -2,6 +2,7 @@
 # https://github.com/ArjanCodes/2021-command-undo-redo/blob/main/LICENSE
 # TODO mention it in case of implementation (MIT LICENSE)
 from dataclasses import dataclass, field
+from platform import freedesktop_os_release
 from typing import Protocol
 from ._workflow import Workflow, _layer_name_or_value
 
@@ -43,26 +44,30 @@ class Undo_redo_controller:
     workflow: Workflow
     undo_stack: list[Workflow] = field(default_factory = list)
     redo_stack: list[Workflow] = field(default_factory = list)
+    freeze_stacks: bool = False
 
     def execute(self,action: Action) -> None:
         self.redo_stack.clear()
-        self.undo_stack.append(
-            copy_workflow_state(self.workflow)
-            )
+        if not self.freeze_stacks:
+            self.undo_stack.append(
+                copy_workflow_state(self.workflow)
+                )
         action.execute()
 
     def undo(self) -> Workflow:
         if not self.undo_stack:
             return
         undone_workflow = self.undo_stack.pop()
-        self.redo_stack.append(undone_workflow)
+        if not self.freeze_stacks:
+            self.redo_stack.append(undone_workflow)
         return undone_workflow
 
     def redo(self) -> None:
         if not self.redo_stack:
             return
         redone_workflow = self.undo_stack.pop()
-        self.undo_stack.append(redone_workflow)
+        if not self.freeze_stacks:
+            self.undo_stack.append(redone_workflow)
         return redone_workflow
     
 def copy_workflow_state (workflow: Workflow):
