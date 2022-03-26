@@ -263,7 +263,7 @@ class WorkflowManager():
         layer_names = [layer.name for layer in self.viewer.layers]
         self.workflow.remove_all_except(layer_names)
 
-    def to_python_code(self):
+    def to_python_code(self, notebook=False):
         """
         Output the current workflow in the viewer as python code.
 
@@ -271,7 +271,7 @@ class WorkflowManager():
         -------
         str: python code
         """
-        return _generate_python_code(self.workflow, self.viewer)
+        return _generate_python_code(self.workflow, self.viewer, notebook=notebook)
 
     def _update_invalid_layer(self):
         """
@@ -396,7 +396,7 @@ def _get_layer_from_data(viewer: napari.Viewer, data):
     return None
 
 
-def _generate_python_code(workflow: Workflow, viewer: napari.Viewer):
+def _generate_python_code(workflow: Workflow, viewer: napari.Viewer, notebook: bool = False):
     """
     Takes a Workflow and a viewer an generates python code corresponding to the workflow.
     Precondition: The used functions must be compatible with Workflows and register their
@@ -408,13 +408,14 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer):
         The workflow which should be converted to code.
     viewer: napari.Viewer
         The viewer where the workflow was set up.
+    notebook: In case code is generated for jupyter notebooks, it looks a bit different.
 
     Returns
     -------
     str
         python code
     """
-    imports = []
+    imports = ["from skimage.io import imread"]
     code = []
 
     import dask
@@ -495,8 +496,13 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer):
 
                 # put together code that calls the function
                 arg_str = ", ".join([python_conform_variable_name(a) for a in arguments])
-                # jupytext will render "# ##" as an h2 header in ipynb
-                code.append("# ## " + function.__name__.replace("_", " ") + "\n")
+
+                comment_start = "# "
+                if notebook:
+                    # jupytext will render "# ##" as an h2 header in ipynb
+                    comment_start = "# ## "
+
+                code.append(comment_start + function.__name__.replace("_", " ") + "\n")
                 code.append(f"{result_name} = {module}.{function.__name__}({arg_str})")
 
                 # add code that shows the result in a layer
@@ -505,11 +511,19 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer):
                         code.append(f"viewer.add_labels({result_name}, name='{key}')")
                     else:
                         code.append(f"viewer.add_image({result_name}, name='{key}')")
+
+                    if notebook:
+                        code.append("napari.utils.nbscreenshot(viewer)")
                     code.append("")
+
             except KeyError:
                 try:
-                    viewer.layers[key]
-                    code.append(f"{result_name} = viewer.layers['{key}'].data")
+                    layer = viewer.layers[key]
+                    if layer.source.path is not None:
+                        code.append(f"{result_name} = imread(\"" + str(layer.source.path).replace("\\", "/") + "\")")
+                        code.append(f"viewer.add_image({result_name}, name=\"{key}\")")
+                    else:
+                        code.append(f"{result_name} = viewer.layers['{key}'].data")
                     code.append("")
                 except KeyError:
                     # The layer doesn't exist
