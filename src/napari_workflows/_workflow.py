@@ -41,9 +41,7 @@ class Workflow():
         """
         # TODO remove prints for testing
 
-        print(f'set workflow step: {name}')
-        print(f'    args: {[arg for arg in args if not isinstance(arg, np.ndarray)]}')
-        print(f'  kwargs: {kwargs}')
+        
 
         # If it's not a function, just store the data
         if not callable(func_or_data):
@@ -52,8 +50,16 @@ class Workflow():
 
         # determine defaul parameters and apply them
         sig = inspect.signature(func_or_data)
+
+        print(f'set workflow step: {name}')
+        print(f'     args: {[arg for arg in args if not isinstance(arg, np.ndarray)]}')
+        print(f'   kwargs: {kwargs}')
+        print(f'signature: {sig}')
+        
         bound = sig.bind(*args, **kwargs)
         bound.apply_defaults()
+
+        
 
         # Go through arguments and in case it's a callable, remove it
         # We should only have numbers, strings and images as parameters
