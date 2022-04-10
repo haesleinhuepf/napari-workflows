@@ -43,14 +43,18 @@ class Workflow():
             self._tasks[name] = func_or_data
             return
 
-        # determine defaul parameters and apply them
-        sig = inspect.signature(func_or_data)
-        bound = sig.bind(*args, **kwargs)
-        bound.apply_defaults()
+        # determine default parameters and apply them
+        try:
+            sig = inspect.signature(func_or_data)
+            bound = sig.bind(*args, **kwargs)
+            bound.apply_defaults()
 
-        # Go through arguments and in case it's a callable, remove it
-        # We should only have numbers, strings and images as parameters
-        used_args = [value for key, value in bound.arguments.items()]
+            # Go through arguments and in case it's a callable, remove it
+            # We should only have numbers, strings and images as parameters
+            used_args = [value for key, value in bound.arguments.items()]
+        except TypeError:
+            used_args = list(args)
+
         for i in range(len(used_args)):
             if callable(used_args[i]):
                 used_args[i] = None
