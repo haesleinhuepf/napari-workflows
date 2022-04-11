@@ -25,14 +25,13 @@ class Update_workflow_step:
 
     def execute(self):
         # basically what the update function was doing before
-        corrected_kwargs = {k:v for k,v in self.kwargs.items() if not ((isinstance(v, Viewer)) or (k == 'viewer'))}
         args = list(self.args)
         for i in range(len(args)):
             args[i] = _layer_name_or_value(args[i], self.viewer)
         if isinstance(args[-1], Viewer):
             args = args[:-1]
         args = tuple(args)
-        self.workflow.set(self.target_layer.name, self.function, *args, **corrected_kwargs)
+        self.workflow.set(self.target_layer.name, self.function, *args, **self.kwargs)
 
         # plus the remove zombies function
         kill_zombies(self.viewer,self.workflow)
