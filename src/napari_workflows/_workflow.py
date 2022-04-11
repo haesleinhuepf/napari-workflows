@@ -262,8 +262,6 @@ class WorkflowManager():
         kwargs: dict
         """
         from ._workflowmanager_commands import Update_workflow_step
-        kwargs = {k:v for k,v in kwargs.items() if not ((isinstance(v, Viewer)) or (k == 'viewer'))}
-
         self.undo_redo_controller.execute(Update_workflow_step(
             self.workflow,
             self.viewer,
