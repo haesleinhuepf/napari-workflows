@@ -48,7 +48,7 @@ class Workflow():
             self._tasks[name] = func_or_data
             return
         
-        
+        '''
         # determine default parameters and apply them
         try:
             sig = inspect.signature(func_or_data)
@@ -75,7 +75,7 @@ class Workflow():
         # Go through arguments and in case it's a callable, remove it
         # We should only have numbers, strings and images as parameters
         used_args = [value for key, value in bound.arguments.items()]
-        '''
+        
         for i in range(len(used_args)):
             if callable(used_args[i]):
                 used_args[i] = None
