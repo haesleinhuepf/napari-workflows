@@ -48,22 +48,11 @@ class Workflow():
             self._tasks[name] = func_or_data
             return
         
-        '''
-        # determine default parameters and apply them
-        try:
-            sig = inspect.signature(func_or_data)
-            bound = sig.bind(*args, **kwargs)
-            bound.apply_defaults()
-
-            # Go through arguments and in case it's a callable, remove it
-            # We should only have numbers, strings and images as parameters
-            used_args = [value for key, value in bound.arguments.items()]
-        except TypeError:
-            used_args = list(args)
-        '''
+        
         # determine defaul parameters and apply them
         sig = inspect.signature(func_or_data)
 
+        # TODO remove debugging print statements
         print(f'set workflow step: {name}')
         print(f'     args: {[arg for arg in args if not isinstance(arg, np.ndarray)]}')
         print(f'   kwargs: {kwargs}')
@@ -71,10 +60,12 @@ class Workflow():
         
         bound = sig.bind(*args, **kwargs)
         bound.apply_defaults()
-
         # Go through arguments and in case it's a callable, remove it
         # We should only have numbers, strings and images as parameters
         used_args = [value for key, value in bound.arguments.items()]
+        
+
+        
         
         for i in range(len(used_args)):
             if callable(used_args[i]):

@@ -2,11 +2,8 @@
 # https://github.com/ArjanCodes/2021-command-undo-redo/blob/main/LICENSE
 # TODO mention it in case of implementation (MIT LICENSE)
 from dataclasses import dataclass, field
-from platform import freedesktop_os_release
 from typing import Protocol
-from ._workflow import Workflow, _layer_name_or_value
-
-
+from ._workflow import Workflow
 
 class Action(Protocol):
     """
