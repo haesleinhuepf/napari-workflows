@@ -536,12 +536,17 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer, notebook: b
     from textwrap import dedent
 
     # put some code in front
-    preamble = dedent("""
-        import napari
-
-        if 'viewer' not in globals():
+    if not notebook:
+        preamble = dedent("""
+            import napari
+            if 'viewer' not in globals():
+                viewer = napari.Viewer()
+            """).strip()
+    else:
+        preamble = dedent("""
+            import napari
             viewer = napari.Viewer()
-        """).strip()
+            """).strip()
 
     complete_code = "\n".join(imports) + "\n" + preamble + "\n\n" + "\n".join(code) + "\n"
 
