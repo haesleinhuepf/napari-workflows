@@ -47,12 +47,6 @@ class Workflow():
         # determine defaul parameters and apply them
         sig = inspect.signature(func_or_data)
 
-        # TODO remove debugging print statements
-        #print(f'set workflow step: {name}')
-        #print(f'     args: {[arg for arg in args if not isinstance(arg, np.ndarray)]}')
-        #print(f'   kwargs: {kwargs}')
-        #print(f'signature: {sig}')
-
         bound = sig.bind(*args, **kwargs)
         bound.apply_defaults()
         # Go through arguments and in case it's a callable, remove it
