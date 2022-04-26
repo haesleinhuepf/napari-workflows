@@ -250,6 +250,9 @@ class WorkflowManager():
         args: list
         kwargs: dict
         """
+        print(f'setting wf step: {target_layer.name}')
+        print(f'    args: {args}')
+        print(f'  kwargs: {kwargs}')
         from ._workflowmanager_commands import Update_workflow_step
         kwargs = {k:v for k,v in kwargs.items() if not ((isinstance(v, Viewer)) or (k == 'viewer'))}
 

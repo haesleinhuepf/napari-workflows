@@ -46,10 +46,28 @@ class Undo_redo_controller:
     def execute(self,action: Action) -> None:
         self.redo_stack.clear()
         if not self.freeze_stacks:
-            self.undo_stack.append(
-                copy_workflow_state(self.workflow)
+            # we only want to update the undo stack if the workflow 
+            # actually changes (otherwise undo won't function properly)
+            if len(self.undo_stack) == 0: 
+                print('no undos there')
+                self.undo_stack.append(
+                    copy_workflow_state(self.workflow)
+                    )
+                action.execute()
+                return
+            if len(self.workflow._tasks.keys()) != len(self.undo_stack[-1]._tasks.keys()):
+                print('number of keys different')
+                self.undo_stack.append(
+                    copy_workflow_state(self.workflow)
+                )
+            elif self.workflow._tasks != self.undo_stack[-1]._tasks:
+                print('different dicts for workflow:')
+                print(self.workflow)
+                self.undo_stack.append(
+                    copy_workflow_state(self.workflow)
                 )
         action.execute()
+        
 
     def undo(self) -> Workflow:
         if not self.undo_stack:
