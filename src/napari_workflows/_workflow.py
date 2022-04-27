@@ -197,7 +197,7 @@ class WorkflowManager():
         viewer: napari.Viewer
         """
         self.viewer = viewer
-        self.workflow = Workflow()
+        self.workflow: Workflow = Workflow()
         self.undo_redo_controller = Undo_redo_controller(self.workflow)
         self._register_events_to_viewer(viewer)
 
@@ -250,9 +250,6 @@ class WorkflowManager():
         args: list
         kwargs: dict
         """
-        print(f'setting wf step: {target_layer.name}')
-        print(f'    args: {args}')
-        print(f'  kwargs: {kwargs}')
         from ._workflowmanager_commands import Update_workflow_step
         kwargs = {k:v for k,v in kwargs.items() if not ((isinstance(v, Viewer)) or (k == 'viewer'))}
 
