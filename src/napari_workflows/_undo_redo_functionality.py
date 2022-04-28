@@ -77,7 +77,7 @@ class Undo_redo_controller:
             )
         return undone_workflow
 
-    def redo(self) -> None:
+    def redo(self) -> Workflow:
         if not self.redo_stack:
             return
         redone_workflow = self.redo_stack.pop()
