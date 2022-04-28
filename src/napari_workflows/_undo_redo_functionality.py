@@ -2,6 +2,7 @@
 # https://github.com/ArjanCodes/2021-command-undo-redo/blob/main/LICENSE
 # TODO mention it in case of implementation (MIT LICENSE)
 from dataclasses import dataclass, field
+from typing import List
 from ._workflow import Workflow
 
 @dataclass
@@ -26,8 +27,8 @@ class Undo_redo_controller:
         remain unchanged when freeze_stacks = True
     """
     workflow: Workflow
-    undo_stack: list[Workflow] = field(default_factory = list)
-    redo_stack: list[Workflow] = field(default_factory = list)
+    undo_stack: List[Workflow] = field(default_factory = list)
+    redo_stack: List[Workflow] = field(default_factory = list)
     freeze_stacks: bool = False
 
     def execute(self,action) -> None:
