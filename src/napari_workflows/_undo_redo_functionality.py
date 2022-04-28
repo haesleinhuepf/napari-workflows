@@ -2,16 +2,7 @@
 # https://github.com/ArjanCodes/2021-command-undo-redo/blob/main/LICENSE
 # TODO mention it in case of implementation (MIT LICENSE)
 from dataclasses import dataclass, field
-from typing import Protocol
 from ._workflow import Workflow
-
-class Action(Protocol):
-    """
-    General form of how and Action is structured
-    """
-    def execute() -> None:
-        ...
-
 
 @dataclass
 class Undo_redo_controller:
@@ -39,7 +30,7 @@ class Undo_redo_controller:
     redo_stack: list[Workflow] = field(default_factory = list)
     freeze_stacks: bool = False
 
-    def execute(self,action: Action) -> None:
+    def execute(self,action) -> None:
         if not self.freeze_stacks:
             # we only want to update the undo stack if the workflow 
             # actually changes (otherwise undo won't function properly)
