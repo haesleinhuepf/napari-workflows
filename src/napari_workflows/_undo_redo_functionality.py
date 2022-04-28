@@ -30,10 +30,6 @@ class Undo_redo_controller:
         List of Actions for which the redo function will be executed if 
         Undo_redo_controller.undo() is called
 
-    freeze: bool
-        If True controller will not carry out any actions on the workflow
-        when freeze = True
-
     freeze_stacks: bool
         Actions can be performed on the workflow but undo and redo stacks
         remain unchanged when freeze_stacks = True
@@ -87,7 +83,7 @@ class Undo_redo_controller:
             )
         return redone_workflow
     
-def copy_workflow_state (workflow: Workflow):
+def copy_workflow_state (workflow: Workflow) -> Workflow:
     workflow_state = Workflow()
     for key, value in workflow._tasks.items():
         if callable(value[0]): 
