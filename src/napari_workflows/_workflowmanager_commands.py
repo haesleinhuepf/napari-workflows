@@ -53,6 +53,10 @@ class Update_workflow_step:
         return string
 
 class Remove_zombies:
+    """
+    Action which when executed removes workflow steps not connected to any
+    further workflow steps
+    """
     def __init__(self, workflow: Workflow, viewer = Viewer) -> None:
         self.workflow = workflow
         self.viewer = viewer
@@ -61,6 +65,10 @@ class Remove_zombies:
         kill_zombies(self.viewer,self.workflow)
 
 class Layer_removed:
+    """
+    Action which when executed removes a workflow step with name specified
+    to the object
+    """
     def __init__(self, workflow: Workflow, name: str) -> None:
         self.workflow = workflow
         self.name = name
@@ -73,5 +81,8 @@ class Layer_removed:
         self.workflow.remove(self.name)
 
 def kill_zombies(viewer, workflow):
+    """
+    Removes workflow steps which are not represented by a layer
+    """
     layer_names = [layer.name for layer in viewer.layers]
     workflow.remove_all_except(layer_names)

@@ -83,6 +83,10 @@ class Undo_redo_controller:
         return redone_workflow
     
 def copy_workflow_state (workflow: Workflow) -> Workflow:
+    """
+    Returns a new Workflow object with identical parameters but not 
+    including any input images
+    """
     workflow_state = Workflow()
     for key, value in workflow._tasks.items():
         if callable(value[0]): 
