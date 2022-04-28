@@ -23,7 +23,7 @@ class Update_workflow_step:
         except KeyError:
             self.old_task = None
 
-    def execute(self):
+    def execute(self) -> None:
         # basically what the update function was doing before
         args = list(self.args)
         for i in range(len(args)):
@@ -53,16 +53,14 @@ class Update_workflow_step:
         return string
 
 class Remove_zombies:
-    # TODO Docstring
     def __init__(self, workflow: Workflow, viewer = Viewer) -> None:
         self.workflow = workflow
         self.viewer = viewer
 
-    def execute(self):
+    def execute(self) -> None:
         kill_zombies(self.viewer,self.workflow)
 
 class Layer_removed:
-    # TODO Docstring
     def __init__(self, workflow: Workflow, name: str) -> None:
         self.workflow = workflow
         self.name = name

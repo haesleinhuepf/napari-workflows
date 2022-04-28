@@ -60,8 +60,7 @@ class Undo_redo_controller:
                     copy_workflow_state(self.workflow)
                 )
                 self.redo_stack.clear()
-        action.execute()
-        
+        action.execute() 
 
     def undo(self) -> Workflow:
         if not self.undo_stack:
