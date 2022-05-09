@@ -275,7 +275,7 @@ class WorkflowManager():
             )
         )
 
-    def to_python_code(self):
+    def to_python_code(self, notebook=False):
         """
         Output the current workflow in the viewer as python code.
 
@@ -283,7 +283,7 @@ class WorkflowManager():
         -------
         str: python code
         """
-        return _generate_python_code(self.workflow, self.viewer)
+        return _generate_python_code(self.workflow, self.viewer, notebook=notebook)
 
     def _update_invalid_layer(self):
         """
@@ -413,7 +413,7 @@ def _get_layer_from_data(viewer: napari.Viewer, data):
     return None
 
 
-def _generate_python_code(workflow: Workflow, viewer: napari.Viewer):
+def _generate_python_code(workflow: Workflow, viewer: napari.Viewer, notebook: bool = False):
     """
     Takes a Workflow and a viewer an generates python code corresponding to the workflow.
     Precondition: The used functions must be compatible with Workflows and register their
@@ -425,47 +425,50 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer):
         The workflow which should be converted to code.
     viewer: napari.Viewer
         The viewer where the workflow was set up.
+    notebook: In case code is generated for jupyter notebooks, it looks a bit different.
 
     Returns
     -------
     str
         python code
     """
-    imports = []
+    imports = ["from skimage.io import imread"]
     code = []
 
-    roots = workflow.roots()
+    import dask
+    order = dask.order.order(workflow._tasks)
+
+    roots = order.keys()
+
+    image_variable_names = {}
 
     def python_conform_variable_name(value):
         if isinstance(value, str):
-            value = value.replace("[", "_") \
-                .replace("]", "_") \
-                .replace(" ", "_") \
-                .replace("(", "_") \
-                .replace(")", "_") \
-                .replace(".", "_") \
-                .replace("-", "_")\
-                .replace(":", "_")\
-                .replace(";", "_")\
-                .replace(",", "_")\
-                .replace(".", "_")
-            if value[0] in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
-                value = "img_" + value
-        return str(value)
+            if value not in image_variable_names:
+                # Make a short and readable variable name, e.g. turn a layer
+                # "Resut of Gaussian blur" into "image1_gb".
+                temp = value
+                temp = temp.replace("Result of ", "")
+                temp = temp.replace(" result", "")
+                temp = "".join([t[0] for t in temp.split("_")])
+                new_name = "image" + str(len(image_variable_names)) + "_" + temp
+                image_variable_names[value] = new_name
 
-    def build_output(list_of_items, func_to_follow):
+            return image_variable_names[value]
+        else:
+            return str(value)
+
+    def build_output(list_of_items):
         """
-        This function is called recursively to generate code that represents the
-        image data flow graph stored in workflow.
+        This function is called to generate code that represents the
+        image data flow graph stored in workflow. The graph should be
+        sorted in advance, e.g. using dask.order.order() and the resulting
+        sorted list of keys can be passed here.
 
         Parameters
         ----------
         list_of_items: list[str]
             layer names that should be computed iteratively
-        func_to_follow: callable
-            This function can be called with a single layer name and will return a list of names that
-            are related to the layer with the given name. This function can for example be
-            `workflow.followers_of()`.
 
         Returns
         -------
@@ -510,7 +513,13 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer):
 
                 # put together code that calls the function
                 arg_str = ", ".join([python_conform_variable_name(a) for a in arguments])
-                code.append("# " + function.__name__.replace("_", " "))
+
+                comment_start = "# "
+                if notebook:
+                    # jupytext will render "# ##" as an h2 header in ipynb
+                    comment_start = "# ## "
+
+                code.append(comment_start + function.__name__.replace("_", " ") + "\n")
                 code.append(f"{result_name} = {module}.{function.__name__}({arg_str})")
 
                 # add code that shows the result in a layer
@@ -519,21 +528,42 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer):
                         code.append(f"viewer.add_labels({result_name}, name='{key}')")
                     else:
                         code.append(f"viewer.add_image({result_name}, name='{key}')")
-            except KeyError:
-                code.append(f"{result_name} = viewer.layers['{key}'].data")
-            code.append("")
-            build_output(func_to_follow(key), func_to_follow)
 
-    build_output(workflow.roots(), workflow.followers_of)
+                    if notebook:
+                        code.append("napari.utils.nbscreenshot(viewer)")
+                    code.append("")
+
+            except KeyError:
+                try:
+                    layer = viewer.layers[key]
+                    if layer.source.path is not None:
+                        code.append(f"{result_name} = imread(\"" + str(layer.source.path).replace("\\", "/") + "\")")
+                        code.append(f"viewer.add_image({result_name}, name=\"{key}\")")
+                    else:
+                        code.append(f"{result_name} = viewer.layers['{key}'].data")
+                    code.append("")
+                except KeyError:
+                    # The layer doesn't exist
+                    pass
+
+
+    build_output(workflow.roots())
+    build_output(roots)
+
     from textwrap import dedent
 
     # put some code in front
-    preamble = dedent("""
-        import napari
-
-        if 'viewer' not in globals():
+    if not notebook:
+        preamble = dedent("""
+            import napari
+            if 'viewer' not in globals():
+                viewer = napari.Viewer()
+            """).strip()
+    else:
+        preamble = dedent("""
+            import napari
             viewer = napari.Viewer()
-        """).strip()
+            """).strip()
 
     complete_code = "\n".join(imports) + "\n" + preamble + "\n\n" + "\n".join(code) + "\n"
 
