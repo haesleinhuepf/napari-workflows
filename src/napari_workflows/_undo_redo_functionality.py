@@ -36,7 +36,7 @@ class Undo_redo_controller:
             # we only want to update the undo stack if the workflow 
             # actually changes (otherwise undo won't function properly)
 
-            
+            # TODO remove once debugged
             if len(self.undo_stack) > 0:
                 print(f'new tasks:\n  {self.workflow._tasks}\n')
                 print(f'undo tasks:\n {(self.undo_stack[-1])._tasks}\n')
