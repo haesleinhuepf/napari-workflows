@@ -35,6 +35,12 @@ class Undo_redo_controller:
         if not self.freeze_stacks:
             # we only want to update the undo stack if the workflow 
             # actually changes (otherwise undo won't function properly)
+
+            
+            if len(self.undo_stack) > 0:
+                print(f'new tasks:\n  {self.workflow._tasks}\n')
+                print(f'undo tasks:\n {(self.undo_stack[-1])._tasks}\n')
+
             if len(self.undo_stack) == 0: 
                 self.undo_stack.append(
                     copy_workflow_state(self.workflow)
@@ -47,7 +53,7 @@ class Undo_redo_controller:
                     copy_workflow_state(self.workflow)
                 )
                 self.redo_stack.clear()
-            elif self.workflow._tasks != self.undo_stack[-1]._tasks:
+            elif self.workflow._tasks != (self.undo_stack[-1])._tasks:  
                 self.undo_stack.append(
                     copy_workflow_state(self.workflow)
                 )
