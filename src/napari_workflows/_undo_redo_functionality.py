@@ -3,6 +3,8 @@
 # TODO mention it in case of implementation (MIT LICENSE)
 from dataclasses import dataclass, field
 from typing import List
+
+import warnings
 from ._workflow import Workflow, _layer_name_or_value
 from napari import Viewer
 
@@ -39,11 +41,6 @@ class Undo_redo_controller:
             # we only want to update the undo stack if the workflow 
             # actually changes (otherwise undo won't function properly)
 
-            # TODO remove once debugged
-            if len(self.undo_stack) > 0:
-                print(f'new tasks:\n  {self.workflow._tasks}\n')
-                print(f'undo tasks:\n {(self.undo_stack[-1])._tasks}\n')
-
             if len(self.undo_stack) == 0: 
                 self.undo_stack.append(
                     copy_workflow_state(self.workflow)
@@ -56,12 +53,23 @@ class Undo_redo_controller:
                     copy_workflow_state(self.workflow)
                 )
                 self.redo_stack.clear()
-            elif self.workflow._tasks != (self.undo_stack[-1])._tasks:  
+                action.execute()
+                return
+
+            # workaround for situation where input image does not match 
+            # any layer in viewer
+            workflows_differ = False
+            try:
+                workflows_differ = (self.workflow._tasks != (self.undo_stack[-1])._tasks)
+            except ValueError:
+                warnings.warn("Cannot determine layer from image - Undo functionality impaired")
+                
+            if workflows_differ:  
                 self.undo_stack.append(
                     copy_workflow_state(self.workflow)
                 )
                 self.redo_stack.clear()
-        action.execute() 
+        action.execute()
 
     def undo(self) -> Workflow:
         if not self.undo_stack:

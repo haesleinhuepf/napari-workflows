@@ -251,8 +251,16 @@ class WorkflowManager():
         kwargs: dict
         """
         from ._workflowmanager_commands import Update_workflow_step
+        # basically what the update function was doing before:
+        # preprocessing of args and kwargs
         kwargs = {k:v for k,v in kwargs.items() if not ((isinstance(v, Viewer)) or (k == 'viewer'))}
-
+        args = list(args)
+        for i in range(len(args)):
+            args[i] = _layer_name_or_value(args[i], self.viewer)
+        if isinstance(args[-1], Viewer):
+            args = args[:-1]
+        args = tuple(args)
+    
         self.undo_redo_controller.execute(Update_workflow_step(
             self.workflow,
             self.viewer,

@@ -24,15 +24,8 @@ class Update_workflow_step:
             self.old_task = None
 
     def execute(self) -> None:
-        # basically what the update function was doing before
-        args = list(self.args)
-        # TODO see if this can be left out
-        #for i in range(len(args)):
-        #    args[i] = _layer_name_or_value(args[i], self.viewer)
-        if isinstance(args[-1], Viewer):
-            args = args[:-1]
-        args = tuple(args)
-        self.workflow.set(self.target_layer.name, self.function, *args, **self.kwargs)
+        # setting of workflow step
+        self.workflow.set(self.target_layer.name, self.function, *self.args, **self.kwargs)
 
         # plus the remove zombies function
         kill_zombies(self.viewer,self.workflow)
@@ -49,7 +42,6 @@ class Update_workflow_step:
         string+= f'    args: {[arg for arg in self.args if not isinstance(arg,ndarray)]}\n'
         string+= f'    kwargs: {self.kwargs}\n'
         string+= f'    layer name: {self.target_layer.name}\n'
-        string+= f'    zombies: {self.removed_layers.keys()}\n'
 
         return string
 
