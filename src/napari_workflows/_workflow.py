@@ -198,7 +198,7 @@ class WorkflowManager():
         """
         self.viewer = viewer
         self.workflow: Workflow = Workflow()
-        self.undo_redo_controller = Undo_redo_controller(self.workflow)
+        self.undo_redo_controller = Undo_redo_controller(self.workflow, viewer)
         self._register_events_to_viewer(viewer)
 
         # The thread workwer will run in the background and check if images have to be recomputed.

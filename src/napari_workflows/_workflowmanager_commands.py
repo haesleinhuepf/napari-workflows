@@ -26,8 +26,9 @@ class Update_workflow_step:
     def execute(self) -> None:
         # basically what the update function was doing before
         args = list(self.args)
-        for i in range(len(args)):
-            args[i] = _layer_name_or_value(args[i], self.viewer)
+        # TODO see if this can be left out
+        #for i in range(len(args)):
+        #    args[i] = _layer_name_or_value(args[i], self.viewer)
         if isinstance(args[-1], Viewer):
             args = args[:-1]
         args = tuple(args)
