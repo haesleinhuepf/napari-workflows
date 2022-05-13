@@ -89,6 +89,7 @@ def test_with_viewer(make_napari_viewer):
     assert len(workflow.leafs()) == 1
 
     # test manager
+    from napari_workflows._undo_redo_functionality import copy_workflow_state
     manager.update(list(viewer.layers)[1], segment, "Image", 2)
     undo_state_check = copy_workflow_state(manager.workflow)
     manager._update_invalid_layer()
@@ -120,7 +121,6 @@ def test_with_viewer(make_napari_viewer):
     _break_down_4d_to_2d_kwargs({'data':np.asarray([[0,1],[5,6]]), 'name': "hello", 'num1': 3, 'num2':4}, 0, viewer)
 
     # check undo and redo
-    from napari_workflows._undo_redo_functionality import copy_workflow_state
     redo_state_check = copy_workflow_state(manager.workflow)
     undone = manager.undo_redo_controller.undo()
     assert undo_state_check._tasks == undone._tasks
