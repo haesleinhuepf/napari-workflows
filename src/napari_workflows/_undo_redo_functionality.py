@@ -37,6 +37,18 @@ class Undo_redo_controller:
     
 
     def execute(self,action) -> None:
+        """
+        Executes an action that is passed to it. In case the workflow changes
+        through this action the previous workflow is added to the undo stack
+        as a copy. If it is added to the undo stack the redo stack is also 
+        cleared.
+
+        Parameters
+        ----------
+        action:
+            An object which has an exeute command, which is initialised with 
+            all parameters needed to perform the action
+        """
         if not self.freeze_stacks:
             # we only want to update the undo stack if the workflow 
             # actually changes (otherwise undo won't function properly)
@@ -72,6 +84,11 @@ class Undo_redo_controller:
         action.execute()
 
     def undo(self) -> Workflow:
+        """
+        In case the undo stack is not empty this function returns the last entry
+        of the undo stack and deletes it from the undo stack and adds the most 
+        recent workflow to the redo stack.
+        """
         if not self.undo_stack:
             return
         undone_workflow = self.undo_stack.pop()
@@ -82,6 +99,10 @@ class Undo_redo_controller:
         return undone_workflow
 
     def redo(self) -> Workflow:
+        """
+        In case the redo stack is not empty this function returns the last entry
+        of the undo stack and deletes it from the undo stack
+        """
         if not self.redo_stack:
             return
         redone_workflow = self.redo_stack.pop()

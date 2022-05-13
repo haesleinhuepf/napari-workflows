@@ -1,4 +1,4 @@
-from ._workflow import Workflow, _layer_name_or_value
+from ._workflow import Workflow
 from napari import Viewer
 from numpy import ndarray
 
