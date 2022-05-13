@@ -6,6 +6,7 @@ from dask.threaded import get as dask_get
 from napari._qt.qthreading import thread_worker
 import time
 
+
 METADATA_WORKFLOW_VALID_KEY = "workflow_valid"
 
 CURRENT_TIME_FRAME_DATA = "current_time_frame_data"
@@ -45,12 +46,13 @@ class Workflow():
 
         # determine defaul parameters and apply them
         sig = inspect.signature(func_or_data)
+
         bound = sig.bind(*args, **kwargs)
         bound.apply_defaults()
-
         # Go through arguments and in case it's a callable, remove it
         # We should only have numbers, strings and images as parameters
         used_args = [value for key, value in bound.arguments.items()]
+
         for i in range(len(used_args)):
             if callable(used_args[i]):
                 used_args[i] = None
@@ -148,6 +150,12 @@ class Workflow():
         """
         return [l for l in self._tasks.keys() if len(self.followers_of(l)) == 0]
 
+    def clear(self):
+        """
+        Removes all workflow steps stored in self._tasks
+        """
+        self._tasks = {}
+
     def __str__(self):
         out = "Workflow:\n"
         for result, task in self._tasks.items():
@@ -180,6 +188,7 @@ class WorkflowManager():
         return WorkflowManager.viewers_managers[viewer]
 
     def __init__(self, viewer: napari.Viewer):
+        from ._undo_redo_functionality import Undo_redo_controller
         """
         Use WorkflowManager.install(viewer) instead of this constructor.
 
@@ -188,8 +197,8 @@ class WorkflowManager():
         viewer: napari.Viewer
         """
         self.viewer = viewer
-        self.workflow = Workflow()
-
+        self.workflow: Workflow = Workflow()
+        self.undo_redo_controller = Undo_redo_controller(self.workflow, viewer)
         self._register_events_to_viewer(viewer)
 
         # The thread workwer will run in the background and check if images have to be recomputed.
@@ -241,27 +250,38 @@ class WorkflowManager():
         args: list
         kwargs: dict
         """
+        from ._workflowmanager_commands import Update_workflow_step
+        # basically what the update function was doing before:
+        # preprocessing of args and kwargs
+        kwargs = {k:v for k,v in kwargs.items() if not ((isinstance(v, Viewer)) or (k == 'viewer'))}
         args = list(args)
         for i in range(len(args)):
             args[i] = _layer_name_or_value(args[i], self.viewer)
-        if isinstance(args[-1], napari.Viewer):
+        if isinstance(args[-1], Viewer):
             args = args[:-1]
         args = tuple(args)
-
-        self.workflow.set(target_layer.name, function, *args, **kwargs)
-
-        self.remove_zombies()
+    
+        self.undo_redo_controller.execute(Update_workflow_step(
+            self.workflow,
+            self.viewer,
+            target_layer,
+            function,
+            *args,
+            **kwargs,
+            )
+        )
 
         # set result valid
         target_layer.metadata[METADATA_WORKFLOW_VALID_KEY] = True
         self.invalidate(self.workflow.followers_of(target_layer.name))
 
     def remove_zombies(self):
-        """
-        Removes all tasks from the workflow which have no corresponding layer in the viewer.
-        """
-        layer_names = [layer.name for layer in self.viewer.layers]
-        self.workflow.remove_all_except(layer_names)
+        from ._workflowmanager_commands import Remove_zombies
+        self.undo_redo_controller.execute(Remove_zombies(
+            self.workflow,
+            self.viewer
+            )
+        )
 
     def to_python_code(self, notebook=False):
         """
@@ -342,8 +362,13 @@ class WorkflowManager():
         self._register_events_to_layer(event.value)
 
     def _layer_removed(self, event):
+        from ._workflowmanager_commands import Layer_removed
         #print("Layer removed", event.value, type(event.value))
-        self.workflow.remove(event.value.name)
+        self.undo_redo_controller.execute(Layer_removed(
+            self.workflow,
+            event.value.name
+            )
+        )
 
     def _slider_updated(self, event):
         slider = event.value
@@ -556,17 +581,6 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer, notebook: b
 
     return complete_code
 
-
-def _layer_invalid(layer):
-    """
-    Returns if the data in a given layer is valid or should be re-computed because parameters were changed.
-    """
-    try:
-        return layer.metadata[METADATA_WORKFLOW_VALID_KEY] == False
-    except KeyError:
-        return False
-
-
 def _layer_name_or_value(value, viewer: napari.Viewer):
     """
     Checks if there is a layer in the viewer where layer.data == value. If so,
@@ -585,6 +599,15 @@ def _layer_name_or_value(value, viewer: napari.Viewer):
     if layer is not None:
         return layer.name
     return value
+
+def _layer_invalid(layer):
+    """
+    Returns if the data in a given layer is valid or should be re-computed because parameters were changed.
+    """
+    try:
+        return layer.metadata[METADATA_WORKFLOW_VALID_KEY] == False
+    except KeyError:
+        return False
 
 
 # todo: this function should live in napari-time-slicer
@@ -650,3 +673,20 @@ def _break_down_4d_to_2d_args(arguments, current_timepoint, viewer):
                 layer.metadata[CURRENT_TIME_FRAME_DATA] = new_value
 
 
+'''
+old code for set workflow step
+# determine defaul parameters and apply them
+        sig = inspect.signature(func_or_data)
+
+        print(f'set workflow step: {name}')
+        print(f'     args: {[arg for arg in args if not isinstance(arg, np.ndarray)]}')
+        print(f'   kwargs: {kwargs}')
+        print(f'signature: {sig}')
+        
+        bound = sig.bind(*args, **kwargs)
+        bound.apply_defaults()
+
+        # Go through arguments and in case it's a callable, remove it
+        # We should only have numbers, strings and images as parameters
+        used_args = [value for key, value in bound.arguments.items()]
+'''

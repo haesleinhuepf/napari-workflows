@@ -84,3 +84,4 @@ venv/
 **/_version.py
 
 test.yaml
+src/napari_workflows/_undo_redo_functionality presentation.py
