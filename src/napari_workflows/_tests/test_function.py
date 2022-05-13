@@ -21,6 +21,10 @@ def test_workflows():
 
     assert len(w._tasks.keys()) == 3
 
+    w.clear()
+
+    assert len(w._tasks.keys()) == 0
+
 
 def test_with_viewer(make_napari_viewer):
     viewer = make_napari_viewer()
@@ -86,6 +90,7 @@ def test_with_viewer(make_napari_viewer):
 
     # test manager
     manager.update(list(viewer.layers)[1], segment, "Image", 2)
+    undo_state_check = copy_workflow_state(manager.workflow)
     manager._update_invalid_layer()
 
     # test code generation
@@ -114,6 +119,15 @@ def test_with_viewer(make_napari_viewer):
     _break_down_4d_to_2d_args([np.asarray([[0,1],[5,6]]), "hello", 3, 4], 0, viewer)
     _break_down_4d_to_2d_kwargs({'data':np.asarray([[0,1],[5,6]]), 'name': "hello", 'num1': 3, 'num2':4}, 0, viewer)
 
+    # check undo and redo
+    from napari_workflows._undo_redo_functionality import copy_workflow_state
+    redo_state_check = copy_workflow_state(manager.workflow)
+    undone = manager.undo_redo_controller.undo()
+    assert undo_state_check._tasks == undone._tasks
+    
+    redone = manager.undo_redo_controller.redo()
+    assert redone._tasks == redo_state_check._tasks
+
     # test removing a layer
     viewer.layers.remove(image_layer)
 
@@ -128,6 +142,9 @@ def test_with_viewer(make_napari_viewer):
     # test removing all others
     workflow.remove_all_except(test_key)
     assert len(workflow._tasks.keys()) == 0
+
+    # running the remove zombies function #TODO make better test
+    manager.remove_zombies()
 
 
 def test_save_load():

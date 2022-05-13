@@ -30,20 +30,6 @@ class Update_workflow_step:
         # plus the remove zombies function
         kill_zombies(self.viewer,self.workflow)
 
-    def __str__(self) -> str:
-        """
-        Return useful information about action for debugging purposes
-        """
-        if not self.old_task:
-            add_change = 'added'
-        else:
-            add_change = 'changed'
-        string = f'Function: {self.function.__name__} {add_change}\n'
-        string+= f'    args: {[arg for arg in self.args if not isinstance(arg,ndarray)]}\n'
-        string+= f'    kwargs: {self.kwargs}\n'
-        string+= f'    layer name: {self.target_layer.name}\n'
-
-        return string
 
 class Remove_zombies:
     """
