@@ -90,17 +90,6 @@ class Undo_redo_controller:
                 copy_workflow_state(self.workflow)
             )
         return redone_workflow
-
-    def compare_workflows(workflow_1, workflow_2):
-        tasks_1 = workflow_1._tasks
-        tasks_2 = workflow_2._tasks
-
-        if set(tasks_1.keys()) != set(tasks_2.keys()):
-            return False
-        for (k1,v1),(k2,v2) in zip(sorted(tasks_1.items()),sorted(tasks_2.items())):
-            if _layer_name_or_value(v1) != _layer_name_or_value(v2):
-                return False
-        return True
     
 def copy_workflow_state (workflow: Workflow) -> Workflow:
     """
