@@ -205,7 +205,7 @@ class WorkflowManager():
         @thread_worker
         def loop_run():
            while True:  # endless loop
-               time.sleep(0.2)
+               time.sleep(0.05)
                yield self._update_invalid_layer()
 
         worker = loop_run()
@@ -257,6 +257,11 @@ class WorkflowManager():
         args = list(args)
         for i in range(len(args)):
             args[i] = _layer_name_or_value(args[i], self.viewer)
+            if not isinstance(args[i], str):
+                # Workaround: If we don't stop storing this here, it crashes later
+                # because it passes strings as images to image processing functions
+                print("Finding layer failed. Change was not stored")
+                return
         if isinstance(args[-1], Viewer):
             args = args[:-1]
         args = tuple(args)

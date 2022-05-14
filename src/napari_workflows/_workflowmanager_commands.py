@@ -18,11 +18,6 @@ class Update_workflow_step:
         self.args = args
         self.kwargs = kwargs
 
-        try:
-            self.old_task = workflow._tasks[target_layer.name]
-        except KeyError:
-            self.old_task = None
-
     def execute(self) -> None:
         # setting of workflow step
         self.workflow.set(self.target_layer.name, self.function, *self.args, **self.kwargs)
@@ -51,10 +46,6 @@ class Layer_removed:
     def __init__(self, workflow: Workflow, name: str) -> None:
         self.workflow = workflow
         self.name = name
-        try:
-            self.old_task = workflow._tasks[name]
-        except KeyError:
-            self.old_task = None
 
     def execute(self) -> None:
         self.workflow.remove(self.name)
