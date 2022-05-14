@@ -409,6 +409,8 @@ def _get_layer_from_data(viewer: napari.Viewer, data):
     """
     Returns the layer in viewer that has the given data or None if such a layer doesn't exist.
     """
+    if viewer is None:
+        return None
     for layer in viewer.layers:
         if layer.data is data:
             return layer
@@ -638,7 +640,8 @@ def _break_down_4d_to_2d_kwargs(arguments, current_timepoint, viewer):
                 if new_value.shape[0] == 1:
                     new_value = new_value[0]
                 arguments[key] = new_value
-                layer.metadata[CURRENT_TIME_FRAME_DATA] = new_value
+                if layer is not None:
+                    layer.metadata[CURRENT_TIME_FRAME_DATA] = new_value
 
 
 # todo: this function should live in napari-time-slicer
