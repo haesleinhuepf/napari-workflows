@@ -64,6 +64,7 @@ def test_with_viewer(make_napari_viewer):
     print(viewer.layers)
 
     test_key_root = image_layer.name
+    print(workflow.followers_of(test_key_root))
     test_key = workflow.followers_of(test_key_root)[0]
 
     # test analysing workflow
