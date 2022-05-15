@@ -17,13 +17,11 @@ class UndoRedoController:
 
     Parameters
     ----------
-    undo_stack: list[Action]
-        List of Actions for which the undo function will be executed if 
-        Undo_redo_controller.undo() is called
+    undo_stack: list[Workflow]
+        List of Workflows representing former states which can be get back by calling undo()
 
-    redo_stack: list[Action]
-        List of Actions for which the redo function will be executed if 
-        Undo_redo_controller.undo() is called
+    redo_stack: list[Workflow]
+        List of Workflows representing next steps in case redo() is called
 
     freeze_stacks: bool
         Actions can be performed on the workflow but undo and redo stacks
