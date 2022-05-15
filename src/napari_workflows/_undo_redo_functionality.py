@@ -9,7 +9,7 @@ from ._workflow import Workflow, _layer_name_or_value
 from napari import Viewer
 
 @dataclass
-class Undo_redo_controller:
+class UndoRedoController:
     """
     This is a class that performs Actions that are handed to it and keeps
     track of which Actions were performed. Undo and redo can then be called with
@@ -34,9 +34,8 @@ class Undo_redo_controller:
     undo_stack: List[Workflow] = field(default_factory = list)
     redo_stack: List[Workflow] = field(default_factory = list)
     freeze_stacks: bool = False
-    
 
-    def execute(self,action:Callable) -> None:
+    def execute(self, action: Callable) -> None:
         """
         Executes an action that is passed to it. In case the workflow changes
         through this action the previous workflow is added to the undo stack
@@ -111,8 +110,9 @@ class Undo_redo_controller:
                 copy_workflow_state(self.workflow)
             )
         return redone_workflow
-    
-def copy_workflow_state (workflow: Workflow) -> Workflow:
+
+
+def copy_workflow_state(workflow: Workflow) -> Workflow:
     """
     Returns a new Workflow object with identical parameters but not 
     including any input images
@@ -123,4 +123,3 @@ def copy_workflow_state (workflow: Workflow) -> Workflow:
             workflow_state.set(key, value)
 
     return workflow_state
-
