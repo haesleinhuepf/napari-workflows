@@ -44,6 +44,7 @@ def test_with_viewer(make_napari_viewer):
     image_layer = viewer.add_image(image)
 
     def segment(image:napari.types.ImageData, sigma:float=5)->napari.types.LabelsData:
+        print("segment:", image is image_layer.data)
         return image > 0.5
 
     def refine(image:napari.types.LabelsData) -> napari.types.LabelsData:
@@ -98,7 +99,7 @@ def test_with_viewer(make_napari_viewer):
     # test code generation
     code = manager.to_python_code()
     print(code)
-    assert 14 < len(code.split("\n")) < 18
+    assert len(code.split("\n")) == 19
 
     # test event handling
     image_layer.data = image

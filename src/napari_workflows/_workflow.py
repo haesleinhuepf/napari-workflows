@@ -254,12 +254,13 @@ class WorkflowManager():
         kwargs = {k:v for k,v in kwargs.items() if not ((isinstance(v, Viewer)) or (k == 'viewer'))}
         args = list(args)
         for i in range(len(args)):
-            args[i] = _layer_name_or_value(args[i], self.viewer)
-            if not isinstance(args[i], str):
-                # Workaround: If we don't stop storing this here, it crashes later
-                # because it passes strings as images to image processing functions
-                print("Finding layer failed. Change was not stored")
-                return
+            if is_image(args[i]):
+                args[i] = _layer_name_or_value(args[i], self.viewer)
+                if not isinstance(args[i], str):
+                    # Workaround: If we don't stop storing this here, it crashes later
+                    # because it passes strings as images to image processing functions
+                    print("Finding layer failed. Change was not stored")
+                    return
         if isinstance(args[-1], Viewer):
             args = args[:-1]
         args = tuple(args)
@@ -430,6 +431,7 @@ def _get_layer_from_data(viewer: napari.Viewer, data):
                 return layer
         except KeyError:
             pass
+
     return None
 
 
@@ -698,8 +700,7 @@ def _break_down_4d_to_2d_args(arguments, current_timepoint, viewer):
         """
     for i in range(len(arguments)):
         value = arguments[i]
-        if isinstance(value, np.ndarray) or str(type(value)) in ["<class 'cupy._core.core.ndarray'>",
-                                                                 "<class 'dask.array.core.Array'>"]:
+        if is_image(value):
             if len(value.shape) == 4:
                 layer = _get_layer_from_data(viewer, value)
                 new_value = value[current_timepoint]
@@ -707,3 +708,6 @@ def _break_down_4d_to_2d_args(arguments, current_timepoint, viewer):
                     new_value = new_value[0]
                 arguments[i] = new_value
                 layer.metadata[CURRENT_TIME_FRAME_DATA] = new_value
+
+def is_image(something):
+    return hasattr(something, "dtype") and hasattr(something, "shape")
