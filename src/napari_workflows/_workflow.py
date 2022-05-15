@@ -707,22 +707,3 @@ def _break_down_4d_to_2d_args(arguments, current_timepoint, viewer):
                     new_value = new_value[0]
                 arguments[i] = new_value
                 layer.metadata[CURRENT_TIME_FRAME_DATA] = new_value
-
-
-'''
-old code for set workflow step
-# determine defaul parameters and apply them
-        sig = inspect.signature(func_or_data)
-
-        print(f'set workflow step: {name}')
-        print(f'     args: {[arg for arg in args if not isinstance(arg, np.ndarray)]}')
-        print(f'   kwargs: {kwargs}')
-        print(f'signature: {sig}')
-        
-        bound = sig.bind(*args, **kwargs)
-        bound.apply_defaults()
-
-        # Go through arguments and in case it's a callable, remove it
-        # We should only have numbers, strings and images as parameters
-        used_args = [value for key, value in bound.arguments.items()]
-'''
