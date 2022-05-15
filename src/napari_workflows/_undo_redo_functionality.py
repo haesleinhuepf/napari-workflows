@@ -55,7 +55,6 @@ class UndoRedoController:
                     copy_workflow_state(self.workflow)
                     )
                 self.redo_stack.clear()
-                print("Redo cleared1")
                 action()
                 return
             if len(self.workflow._tasks.keys()) != len(self.undo_stack[-1]._tasks.keys()):
@@ -63,7 +62,6 @@ class UndoRedoController:
                     copy_workflow_state(self.workflow)
                 )
                 self.redo_stack.clear()
-                print("Redo cleared2")
                 action()
                 return
 
@@ -79,7 +77,6 @@ class UndoRedoController:
                 self.undo_stack.append(
                     copy_workflow_state(self.workflow)
                 )
-                print("Redo cleared3")
                 self.redo_stack.clear()
 
         action()
