@@ -2,7 +2,7 @@
 # https://github.com/ArjanCodes/2021-command-undo-redo/blob/main/LICENSE
 # TODO mention it in case of implementation (MIT LICENSE)
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Callable
 
 import warnings
 from ._workflow import Workflow, _layer_name_or_value
@@ -36,7 +36,7 @@ class Undo_redo_controller:
     freeze_stacks: bool = False
     
 
-    def execute(self,action) -> None:
+    def execute(self,action:Callable) -> None:
         """
         Executes an action that is passed to it. In case the workflow changes
         through this action the previous workflow is added to the undo stack
@@ -45,7 +45,7 @@ class Undo_redo_controller:
 
         Parameters
         ----------
-        action:
+        action: Callable
             An object which has an exeute command, which is initialised with 
             all parameters needed to perform the action
         """
@@ -58,14 +58,14 @@ class Undo_redo_controller:
                     copy_workflow_state(self.workflow)
                     )
                 self.redo_stack.clear()
-                action.execute()
+                action()
                 return
             if len(self.workflow._tasks.keys()) != len(self.undo_stack[-1]._tasks.keys()):
                 self.undo_stack.append(
                     copy_workflow_state(self.workflow)
                 )
                 self.redo_stack.clear()
-                action.execute()
+                action()
                 return
 
             # workaround for situation where input image does not match 
@@ -81,7 +81,7 @@ class Undo_redo_controller:
                     copy_workflow_state(self.workflow)
                 )
                 self.redo_stack.clear()
-        action.execute()
+        action()
 
     def undo(self) -> Workflow:
         """

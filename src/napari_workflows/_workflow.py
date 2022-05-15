@@ -5,7 +5,7 @@ import inspect
 from dask.threaded import get as dask_get
 from napari._qt.qthreading import thread_worker
 import time
-
+from functools import partial
 
 METADATA_WORKFLOW_VALID_KEY = "workflow_valid"
 
@@ -250,8 +250,6 @@ class WorkflowManager():
         args: list
         kwargs: dict
         """
-        from ._workflowmanager_commands import Update_workflow_step
-        # basically what the update function was doing before:
         # preprocessing of args and kwargs
         kwargs = {k:v for k,v in kwargs.items() if not ((isinstance(v, Viewer)) or (k == 'viewer'))}
         args = list(args)
@@ -265,28 +263,31 @@ class WorkflowManager():
         if isinstance(args[-1], Viewer):
             args = args[:-1]
         args = tuple(args)
-    
-        self.undo_redo_controller.execute(Update_workflow_step(
-            self.workflow,
-            self.viewer,
-            target_layer,
-            function,
-            *args,
-            **kwargs,
-            )
-        )
+
+        self.undo_redo_controller.execute(partial(self._update_workflow_step, target_layer, function, args, kwargs))
 
         # set result valid
         target_layer.metadata[METADATA_WORKFLOW_VALID_KEY] = True
         self.invalidate(self.workflow.followers_of(target_layer.name))
 
+    def _update_workflow_step(self, target_layer, function, args, kwargs):
+        # setting of workflow step
+        self.workflow.set(target_layer.name, function, *args, **kwargs)
+        self._remove_zombies()
+
     def remove_zombies(self):
-        from ._workflowmanager_commands import Remove_zombies
-        self.undo_redo_controller.execute(Remove_zombies(
-            self.workflow,
-            self.viewer
-            )
-        )
+        """
+        Removes workflow steps which are not represented by a layer
+        This step is recorded for undo/redo
+        """
+        self.undo_redo_controller.execute(self._remove_zombies)
+
+    def _remove_zombies(self):
+        """
+        Removes workflow steps which are not represented by a layer
+        """
+        layer_names = [layer.name for layer in self.viewer.layers]
+        self.workflow.remove_all_except(layer_names)
 
     def to_python_code(self, notebook=False):
         """
@@ -367,13 +368,17 @@ class WorkflowManager():
         self._register_events_to_layer(event.value)
 
     def _layer_removed(self, event):
-        from ._workflowmanager_commands import Layer_removed
-        #print("Layer removed", event.value, type(event.value))
-        self.undo_redo_controller.execute(Layer_removed(
-            self.workflow,
-            event.value.name
-            )
-        )
+        """
+        Remove a layer from the workflow as specified by a napari event
+        This step is recorded for undo/redo
+        """
+        self.undo_redo_controller.execute(partial(self._remove_layer_from_workflow, event.value.name))
+
+    def _remove_layer_from_workflow(self, name):
+        """
+        Remove a layer from the workflow as specified by name
+        """
+        self.workflow.remove(name)
 
     def _slider_updated(self, event):
         slider = event.value
