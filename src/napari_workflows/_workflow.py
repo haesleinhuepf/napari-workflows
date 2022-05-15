@@ -173,7 +173,7 @@ class WorkflowManager():
     """
 
     @classmethod
-    def install(cls, viewer: napari.Viewer):
+    def install(cls, viewer: napari.Viewer, _for_testing:bool = False):
         """
         Installs a workflow manager to a given napari Viewer (if not done earlier already) and returns it.
         """
@@ -181,13 +181,13 @@ class WorkflowManager():
             WorkflowManager.viewers_managers = {}
 
         if not viewer in WorkflowManager.viewers_managers.keys():
-            WorkflowManager.viewers_managers[viewer] = WorkflowManager(viewer)
+            WorkflowManager.viewers_managers[viewer] = WorkflowManager(viewer, _for_testing)
             # visualize intermediate results human-readable from top-left to bottom-right
             viewer.grid.stride = -1
 
         return WorkflowManager.viewers_managers[viewer]
 
-    def __init__(self, viewer: napari.Viewer):
+    def __init__(self, viewer: napari.Viewer, _for_testing:bool = False):
         from ._undo_redo_functionality import UndoRedoController
         """
         Use WorkflowManager.install(viewer) instead of this constructor.
@@ -208,18 +208,19 @@ class WorkflowManager():
                time.sleep(0.05)
                yield self._update_invalid_layer()
 
-        worker = loop_run()
+        if not _for_testing:
+            worker = loop_run()
 
-        # in case some layer was updated by the thread worker, this function will receive the new data
-        def update_layer(whatever):
-            if whatever is not None:
-                name, data = whatever
-                if _viewer_has_layer(self.viewer, name):
-                    self.viewer.layers[name].data = data
+            # in case some layer was updated by the thread worker, this function will receive the new data
+            def update_layer(whatever):
+                if whatever is not None:
+                    name, data = whatever
+                    if _viewer_has_layer(self.viewer, name):
+                        self.viewer.layers[name].data = data
 
-        # Start the loop
-        worker.yielded.connect(update_layer)
-        worker.start()
+            # Start the loop
+            worker.yielded.connect(update_layer)
+            worker.start()
 
     def invalidate(self, items):
         """

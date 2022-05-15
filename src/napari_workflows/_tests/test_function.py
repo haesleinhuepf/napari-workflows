@@ -51,7 +51,7 @@ def test_with_viewer(make_napari_viewer):
         return image
 
     from napari_workflows import WorkflowManager
-    manager = WorkflowManager.install(viewer)
+    manager = WorkflowManager.install(viewer, _for_testing=True)
 
     from napari_tools_menu import make_gui
     gui = make_gui(segment, viewer, auto_call=True)
