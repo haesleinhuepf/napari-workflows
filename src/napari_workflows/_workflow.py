@@ -591,8 +591,8 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer, notebook: b
             viewer = napari.Viewer()
             """).strip()
 
-    if len(viewer.dims.current_step):
-        preamble = "\n\n" + dedent("""            
+    if len(viewer.dims.current_step) > 3:
+        preamble = preamble + "\n\n" + dedent("""            
             # ## A note on processing timelapse data
             # This code was generated to process a single timepoint of a timelapse dataset.
             # To process all time points, you need to program a for-loop as shon here:
