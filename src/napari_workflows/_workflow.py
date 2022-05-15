@@ -490,6 +490,11 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer, notebook: b
         str
             python code
         """
+        comment_start = "# "
+        if notebook:
+            # jupytext will render "# ##" as an h2 header in ipynb
+            comment_start = "# ## "
+
         for key in list_of_items:
             result_name = python_conform_variable_name(key)
             try:
@@ -529,32 +534,30 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer, notebook: b
                 # put together code that calls the function
                 arg_str = ", ".join([python_conform_variable_name(a) for a in arguments])
 
-                comment_start = "# "
-                if notebook:
-                    # jupytext will render "# ##" as an h2 header in ipynb
-                    comment_start = "# ## "
 
                 code.append(comment_start + function.__name__.replace("_", " ") + "\n")
                 code.append(f"{result_name} = {module}.{function.__name__}({arg_str})")
 
-                # add code that shows the result in a layer
-                if _viewer_has_layer(viewer, key):
-                    if isinstance(viewer.layers[key], napari.layers.Labels):
-                        code.append(f"viewer.add_labels({result_name}, name='{key}')")
-                    else:
-                        code.append(f"viewer.add_image({result_name}, name='{key}')")
-
-                    if notebook:
-                        code.append("napari.utils.nbscreenshot(viewer)")
-                    code.append("")
+                _viewer_add_image_and_notebook_screenshot(code, viewer, notebook, result_name, key)
 
             except KeyError:
                 try:
                     layer = viewer.layers[key]
+                    if notebook:
+                        code.append(comment_start + f"Loading '{key}'")
+
                     if layer.source.path is not None:
+                        if notebook:
+                            code.append(f"")
+
                         code.append(f"{result_name} = imread(\"" + str(layer.source.path).replace("\\", "/") + "\")")
-                        code.append(f"viewer.add_image({result_name}, name=\"{key}\")")
+                        _viewer_add_image_and_notebook_screenshot(code, viewer, notebook, result_name, key)
                     else:
+                        if notebook:
+                            code.append(f"# Please enter code for loading '{key}' here.")
+                            code.append(f"")
+                            code.append(f"#filename = 'path/to/image.tif'")
+                            code.append(f"#{result_name} = imread(filename)")
                         code.append(f"{result_name} = viewer.layers['{key}'].data")
                     code.append("")
                 except KeyError:
@@ -580,6 +583,14 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer, notebook: b
             viewer = napari.Viewer()
             """).strip()
 
+    if len(viewer.dims.current_step):
+        preamble = "\n\n" + dedent("""            
+            # ## A note on processing timelapse data
+            # This code was generated to process a single timepoint of a timelapse dataset.
+            # To process all time points, you need to program a for-loop as shon here:
+            # https://haesleinhuepf.github.io/BioImageAnalysisNotebooks/33_batch_processing/12_process_folders.html
+            """).strip()
+
     complete_code = "\n".join(imports) + "\n" + preamble + "\n\n" + "\n".join(code) + "\n"
 
     # format the code PEP8
@@ -587,6 +598,18 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer, notebook: b
     complete_code = autopep8.fix_code(complete_code)
 
     return complete_code
+
+def _viewer_add_image_and_notebook_screenshot(code, viewer, notebook, result_name, key):
+    # add code that shows the result in a layer
+    if _viewer_has_layer(viewer, key):
+        if isinstance(viewer.layers[key], napari.layers.Labels):
+            code.append(f"viewer.add_labels({result_name}, name='{key}')")
+        else:
+            code.append(f"viewer.add_image({result_name}, name='{key}')")
+
+        if notebook:
+            code.append("napari.utils.nbscreenshot(viewer)")
+        code.append("")
 
 def _layer_name_or_value(value, viewer: napari.Viewer):
     """
