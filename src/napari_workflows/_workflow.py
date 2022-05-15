@@ -5,6 +5,7 @@ import inspect
 from dask.threaded import get as dask_get
 from napari._qt.qthreading import thread_worker
 import time
+from functools import partial
 
 METADATA_WORKFLOW_VALID_KEY = "workflow_valid"
 
@@ -45,12 +46,13 @@ class Workflow():
 
         # determine defaul parameters and apply them
         sig = inspect.signature(func_or_data)
+
         bound = sig.bind(*args, **kwargs)
         bound.apply_defaults()
-
         # Go through arguments and in case it's a callable, remove it
         # We should only have numbers, strings and images as parameters
         used_args = [value for key, value in bound.arguments.items()]
+
         for i in range(len(used_args)):
             if callable(used_args[i]):
                 used_args[i] = None
@@ -148,6 +150,12 @@ class Workflow():
         """
         return [l for l in self._tasks.keys() if len(self.followers_of(l)) == 0]
 
+    def clear(self):
+        """
+        Removes all workflow steps stored in self._tasks
+        """
+        self._tasks = {}
+
     def __str__(self):
         out = "Workflow:\n"
         for result, task in self._tasks.items():
@@ -165,7 +173,7 @@ class WorkflowManager():
     """
 
     @classmethod
-    def install(cls, viewer: napari.Viewer):
+    def install(cls, viewer: napari.Viewer, _for_testing:bool = False):
         """
         Installs a workflow manager to a given napari Viewer (if not done earlier already) and returns it.
         """
@@ -173,13 +181,14 @@ class WorkflowManager():
             WorkflowManager.viewers_managers = {}
 
         if not viewer in WorkflowManager.viewers_managers.keys():
-            WorkflowManager.viewers_managers[viewer] = WorkflowManager(viewer)
+            WorkflowManager.viewers_managers[viewer] = WorkflowManager(viewer, _for_testing)
             # visualize intermediate results human-readable from top-left to bottom-right
             viewer.grid.stride = -1
 
         return WorkflowManager.viewers_managers[viewer]
 
-    def __init__(self, viewer: napari.Viewer):
+    def __init__(self, viewer: napari.Viewer, _for_testing:bool = False):
+        from ._undo_redo_functionality import UndoRedoController
         """
         Use WorkflowManager.install(viewer) instead of this constructor.
 
@@ -188,29 +197,30 @@ class WorkflowManager():
         viewer: napari.Viewer
         """
         self.viewer = viewer
-        self.workflow = Workflow()
-
+        self.workflow: Workflow = Workflow()
+        self.undo_redo_controller = UndoRedoController(self.workflow, viewer)
         self._register_events_to_viewer(viewer)
 
         # The thread workwer will run in the background and check if images have to be recomputed.
         @thread_worker
         def loop_run():
            while True:  # endless loop
-               time.sleep(0.2)
+               time.sleep(0.05)
                yield self._update_invalid_layer()
 
-        worker = loop_run()
+        if not _for_testing:
+            worker = loop_run()
 
-        # in case some layer was updated by the thread worker, this function will receive the new data
-        def update_layer(whatever):
-            if whatever is not None:
-                name, data = whatever
-                if _viewer_has_layer(self.viewer, name):
-                    self.viewer.layers[name].data = data
+            # in case some layer was updated by the thread worker, this function will receive the new data
+            def update_layer(whatever):
+                if whatever is not None:
+                    name, data = whatever
+                    if _viewer_has_layer(self.viewer, name):
+                        self.viewer.layers[name].data = data
 
-        # Start the loop
-        worker.yielded.connect(update_layer)
-        worker.start()
+            # Start the loop
+            worker.yielded.connect(update_layer)
+            worker.start()
 
     def invalidate(self, items):
         """
@@ -241,24 +251,42 @@ class WorkflowManager():
         args: list
         kwargs: dict
         """
+        # preprocessing of args and kwargs
+        kwargs = {k:v for k,v in kwargs.items() if not ((isinstance(v, Viewer)) or (k == 'viewer'))}
         args = list(args)
         for i in range(len(args)):
-            args[i] = _layer_name_or_value(args[i], self.viewer)
-        if isinstance(args[-1], napari.Viewer):
+            if is_image(args[i]):
+                args[i] = _layer_name_or_value(args[i], self.viewer)
+                if not isinstance(args[i], str):
+                    # Workaround: If we don't stop storing this here, it crashes later
+                    # because it passes strings as images to image processing functions
+                    print("Finding layer failed. Change was not stored")
+                    return
+        if isinstance(args[-1], Viewer):
             args = args[:-1]
         args = tuple(args)
 
-        self.workflow.set(target_layer.name, function, *args, **kwargs)
-
-        self.remove_zombies()
+        self.undo_redo_controller.execute(partial(self._update_workflow_step, target_layer, function, args, kwargs))
 
         # set result valid
         target_layer.metadata[METADATA_WORKFLOW_VALID_KEY] = True
         self.invalidate(self.workflow.followers_of(target_layer.name))
 
+    def _update_workflow_step(self, target_layer, function, args, kwargs):
+        # setting of workflow step
+        self.workflow.set(target_layer.name, function, *args, **kwargs)
+        self._remove_zombies()
+
     def remove_zombies(self):
         """
-        Removes all tasks from the workflow which have no corresponding layer in the viewer.
+        Removes workflow steps which are not represented by a layer
+        This step is recorded for undo/redo
+        """
+        self.undo_redo_controller.execute(self._remove_zombies)
+
+    def _remove_zombies(self):
+        """
+        Removes workflow steps which are not represented by a layer
         """
         layer_names = [layer.name for layer in self.viewer.layers]
         self.workflow.remove_all_except(layer_names)
@@ -342,8 +370,17 @@ class WorkflowManager():
         self._register_events_to_layer(event.value)
 
     def _layer_removed(self, event):
-        #print("Layer removed", event.value, type(event.value))
-        self.workflow.remove(event.value.name)
+        """
+        Remove a layer from the workflow as specified by a napari event
+        This step is recorded for undo/redo
+        """
+        self.undo_redo_controller.execute(partial(self._remove_layer_from_workflow, event.value.name))
+
+    def _remove_layer_from_workflow(self, name):
+        """
+        Remove a layer from the workflow as specified by name
+        """
+        self.workflow.remove(name)
 
     def _slider_updated(self, event):
         slider = event.value
@@ -384,6 +421,8 @@ def _get_layer_from_data(viewer: napari.Viewer, data):
     """
     Returns the layer in viewer that has the given data or None if such a layer doesn't exist.
     """
+    if viewer is None:
+        return None
     for layer in viewer.layers:
         if layer.data is data:
             return layer
@@ -393,6 +432,7 @@ def _get_layer_from_data(viewer: napari.Viewer, data):
                 return layer
         except KeyError:
             pass
+
     return None
 
 
@@ -458,6 +498,11 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer, notebook: b
         str
             python code
         """
+        comment_start = "# "
+        if notebook:
+            # jupytext will render "# ##" as an h2 header in ipynb
+            comment_start = "# ## "
+
         for key in list_of_items:
             result_name = python_conform_variable_name(key)
             try:
@@ -497,32 +542,30 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer, notebook: b
                 # put together code that calls the function
                 arg_str = ", ".join([python_conform_variable_name(a) for a in arguments])
 
-                comment_start = "# "
-                if notebook:
-                    # jupytext will render "# ##" as an h2 header in ipynb
-                    comment_start = "# ## "
 
                 code.append(comment_start + function.__name__.replace("_", " ") + "\n")
                 code.append(f"{result_name} = {module}.{function.__name__}({arg_str})")
 
-                # add code that shows the result in a layer
-                if _viewer_has_layer(viewer, key):
-                    if isinstance(viewer.layers[key], napari.layers.Labels):
-                        code.append(f"viewer.add_labels({result_name}, name='{key}')")
-                    else:
-                        code.append(f"viewer.add_image({result_name}, name='{key}')")
-
-                    if notebook:
-                        code.append("napari.utils.nbscreenshot(viewer)")
-                    code.append("")
+                _viewer_add_image_and_notebook_screenshot(code, viewer, notebook, result_name, key)
 
             except KeyError:
                 try:
                     layer = viewer.layers[key]
+                    if notebook:
+                        code.append(comment_start + f"Loading '{key}'")
+
                     if layer.source.path is not None:
+                        if notebook:
+                            code.append(f"")
+
                         code.append(f"{result_name} = imread(\"" + str(layer.source.path).replace("\\", "/") + "\")")
-                        code.append(f"viewer.add_image({result_name}, name=\"{key}\")")
+                        _viewer_add_image_and_notebook_screenshot(code, viewer, notebook, result_name, key)
                     else:
+                        if notebook:
+                            code.append(f"# Please enter code for loading '{key}' here.")
+                            code.append(f"")
+                            code.append(f"#filename = 'path/to/image.tif'")
+                            code.append(f"#{result_name} = imread(filename)")
                         code.append(f"{result_name} = viewer.layers['{key}'].data")
                     code.append("")
                 except KeyError:
@@ -548,6 +591,14 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer, notebook: b
             viewer = napari.Viewer()
             """).strip()
 
+    if len(viewer.dims.current_step):
+        preamble = "\n\n" + dedent("""            
+            # ## A note on processing timelapse data
+            # This code was generated to process a single timepoint of a timelapse dataset.
+            # To process all time points, you need to program a for-loop as shon here:
+            # https://haesleinhuepf.github.io/BioImageAnalysisNotebooks/33_batch_processing/12_process_folders.html
+            """).strip()
+
     complete_code = "\n".join(imports) + "\n" + preamble + "\n\n" + "\n".join(code) + "\n"
 
     # format the code PEP8
@@ -556,16 +607,17 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer, notebook: b
 
     return complete_code
 
+def _viewer_add_image_and_notebook_screenshot(code, viewer, notebook, result_name, key):
+    # add code that shows the result in a layer
+    if _viewer_has_layer(viewer, key):
+        if isinstance(viewer.layers[key], napari.layers.Labels):
+            code.append(f"viewer.add_labels({result_name}, name='{key}')")
+        else:
+            code.append(f"viewer.add_image({result_name}, name='{key}')")
 
-def _layer_invalid(layer):
-    """
-    Returns if the data in a given layer is valid or should be re-computed because parameters were changed.
-    """
-    try:
-        return layer.metadata[METADATA_WORKFLOW_VALID_KEY] == False
-    except KeyError:
-        return False
-
+        if notebook:
+            code.append("napari.utils.nbscreenshot(viewer)")
+        code.append("")
 
 def _layer_name_or_value(value, viewer: napari.Viewer):
     """
@@ -585,6 +637,15 @@ def _layer_name_or_value(value, viewer: napari.Viewer):
     if layer is not None:
         return layer.name
     return value
+
+def _layer_invalid(layer):
+    """
+    Returns if the data in a given layer is valid or should be re-computed because parameters were changed.
+    """
+    try:
+        return layer.metadata[METADATA_WORKFLOW_VALID_KEY] == False
+    except KeyError:
+        return False
 
 
 # todo: this function should live in napari-time-slicer
@@ -615,7 +676,8 @@ def _break_down_4d_to_2d_kwargs(arguments, current_timepoint, viewer):
                 if new_value.shape[0] == 1:
                     new_value = new_value[0]
                 arguments[key] = new_value
-                layer.metadata[CURRENT_TIME_FRAME_DATA] = new_value
+                if layer is not None:
+                    layer.metadata[CURRENT_TIME_FRAME_DATA] = new_value
 
 
 # todo: this function should live in napari-time-slicer
@@ -639,8 +701,7 @@ def _break_down_4d_to_2d_args(arguments, current_timepoint, viewer):
         """
     for i in range(len(arguments)):
         value = arguments[i]
-        if isinstance(value, np.ndarray) or str(type(value)) in ["<class 'cupy._core.core.ndarray'>",
-                                                                 "<class 'dask.array.core.Array'>"]:
+        if is_image(value):
             if len(value.shape) == 4:
                 layer = _get_layer_from_data(viewer, value)
                 new_value = value[current_timepoint]
@@ -649,4 +710,5 @@ def _break_down_4d_to_2d_args(arguments, current_timepoint, viewer):
                 arguments[i] = new_value
                 layer.metadata[CURRENT_TIME_FRAME_DATA] = new_value
 
-
+def is_image(something):
+    return hasattr(something, "dtype") and hasattr(something, "shape")
