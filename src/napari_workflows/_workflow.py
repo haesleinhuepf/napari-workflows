@@ -387,7 +387,7 @@ class WorkflowManager():
         # print("Slider updated", event.value, type(event.value))
         if len(slider) == 4: # a time-slider exists
             for l in self.viewer.layers:
-                if len(l.data.shape) == 4:
+                if (not isinstance(l, (napari.layers.Labels, napari.layers.Image))) or len(l.data.shape):
                     self.invalidate(self.workflow.followers_of(l.name))
 
     def _layer_selection_changed(self, event):
