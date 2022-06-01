@@ -255,7 +255,7 @@ class WorkflowManager():
         kwargs = {k:v for k,v in kwargs.items() if not ((isinstance(v, Viewer)) or (k == 'viewer'))}
         args = list(args)
         for i in range(len(args)):
-            if is_image(args[i]):
+            if is_image(args[i]) or type(args[i]) == tuple:
                 args[i] = _layer_name_or_value(args[i], self.viewer)
                 if not isinstance(args[i], str):
                     # Workaround: If we don't stop storing this here, it crashes later
@@ -387,7 +387,7 @@ class WorkflowManager():
         # print("Slider updated", event.value, type(event.value))
         if len(slider) == 4: # a time-slider exists
             for l in self.viewer.layers:
-                if (not isinstance(l, (napari.layers.Labels, napari.layers.Image))) or len(l.data.shape):
+                if (not isinstance(l, (napari.layers.Labels, napari.layers.Image))) or len(l.data.shape) == 4:
                     self.invalidate(self.workflow.followers_of(l.name))
 
     def _layer_selection_changed(self, event):
@@ -432,6 +432,14 @@ def _get_layer_from_data(viewer: napari.Viewer, data):
                 return layer
         except KeyError:
             pass
+
+        if type(data) == tuple and type(layer.data) == tuple:
+            equal_data = True
+            for a, b in zip(data, layer.data):
+                if a is not b:
+                    equal_data = False
+            if equal_data:
+                return layer
 
     return None
 
