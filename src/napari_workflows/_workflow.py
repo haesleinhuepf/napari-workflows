@@ -205,8 +205,11 @@ class WorkflowManager():
         @thread_worker
         def loop_run():
            while True:  # endless loop
-               time.sleep(0.05)
-               yield self._update_invalid_layer()
+               if self._is_active:
+                   time.sleep(0.05)
+                   yield self._update_invalid_layer()
+               else:
+                   time.sleep(0.05)
 
         if not _for_testing:
             worker = loop_run()
@@ -221,6 +224,13 @@ class WorkflowManager():
             # Start the loop
             worker.yielded.connect(update_layer)
             worker.start()
+            
+    def toggle_live_update(self) -> None:
+        """Toggle the state of the live_update to activate/deactivated."""
+        if self._is_active:
+            self._is_active = False
+        else:
+            self._is_active = True
 
     def invalidate(self, items):
         """
