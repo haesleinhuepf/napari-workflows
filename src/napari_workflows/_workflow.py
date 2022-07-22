@@ -200,19 +200,19 @@ class WorkflowManager():
         self.workflow: Workflow = Workflow()
         self.undo_redo_controller = UndoRedoController(self.workflow, viewer)
         self._register_events_to_viewer(viewer)
+        self.worker = None
+        self._is_active = True
 
         # The thread workwer will run in the background and check if images have to be recomputed.
         @thread_worker
         def loop_run():
            while True:  # endless loop
-               if self._is_active:
-                   time.sleep(0.05)
-                   yield self._update_invalid_layer()
-               else:
-                   time.sleep(0.05)
+               time.sleep(0.05)
+               yield self._update_invalid_layer()
+
 
         if not _for_testing:
-            worker = loop_run()
+            self.worker = loop_run()
 
             # in case some layer was updated by the thread worker, this function will receive the new data
             def update_layer(whatever):
@@ -222,15 +222,22 @@ class WorkflowManager():
                         self.viewer.layers[name].data = data
 
             # Start the loop
-            worker.yielded.connect(update_layer)
-            worker.start()
-            
-    def toggle_live_update(self) -> None:
-        """Toggle the state of the live_update to activate/deactivated."""
-        if self._is_active:
-            self._is_active = False
-        else:
-            self._is_active = True
+            self.worker.yielded.connect(update_layer)
+            self.worker.start()
+
+    def pause_update(self) -> None:
+        """Temporarily halt the automatic update."""
+        self.worker.pause()
+        self._is_active = False
+
+    def resume_update(self) -> None:
+        """Resume the automatic update."""
+        self.worker.resume()
+        self._is_active = True
+
+    def is_paused(self) -> bool:
+        """Return the current worker state."""
+        return self._is_active
 
     def invalidate(self, items):
         """
@@ -610,7 +617,7 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer, notebook: b
             """).strip()
 
     if len(viewer.dims.current_step) > 3:
-        preamble = preamble + "\n\n" + dedent("""            
+        preamble = preamble + "\n\n" + dedent("""
             # ## A note on processing timelapse data
             # This code was generated to process a single timepoint of a timelapse dataset.
             # To process all time points, you need to program a for-loop as shon here:
