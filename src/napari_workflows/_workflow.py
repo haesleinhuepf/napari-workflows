@@ -291,7 +291,7 @@ class WorkflowManager():
         layer_names = [layer.name for layer in self.viewer.layers]
         self.workflow.remove_all_except(layer_names)
 
-    def to_python_code(self, notebook=False):
+    def to_python_code(self, notebook=False, use_napari:bool=True):
         """
         Output the current workflow in the viewer as python code.
 
@@ -299,7 +299,7 @@ class WorkflowManager():
         -------
         str: python code
         """
-        return _generate_python_code(self.workflow, self.viewer, notebook=notebook)
+        return _generate_python_code(self.workflow, self.viewer, notebook=notebook, use_napari=use_napari)
 
     def _update_invalid_layer(self):
         """
@@ -444,7 +444,7 @@ def _get_layer_from_data(viewer: napari.Viewer, data):
     return None
 
 
-def _generate_python_code(workflow: Workflow, viewer: napari.Viewer, notebook: bool = False):
+def _generate_python_code(workflow: Workflow, viewer: napari.Viewer, notebook: bool = False, use_napari:bool = True):
     """
     Takes a Workflow and a viewer an generates python code corresponding to the workflow.
     Precondition: The used functions must be compatible with Workflows and register their
@@ -456,7 +456,8 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer, notebook: b
         The workflow which should be converted to code.
     viewer: napari.Viewer
         The viewer where the workflow was set up.
-    notebook: In case code is generated for jupyter notebooks, it looks a bit different.
+    notebook: bool, optional
+        In case code is generated for jupyter notebooks, it looks a bit different.
 
     Returns
     -------
@@ -543,6 +544,13 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer, notebook: b
                 except:
                     pass
 
+                # document version
+                try:
+                    version = loaded_module.__version__
+                    new_import = new_import + " # version " + str(version)
+                except:
+                    pass
+
                 # add imports
                 if new_import not in imports:
                     imports.append(new_import)
@@ -554,7 +562,10 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer, notebook: b
                 code.append(comment_start + function.__name__.replace("_", " ") + "\n")
                 code.append(f"{result_name} = {module}.{function.__name__}({arg_str})")
 
-                _viewer_add_image_and_notebook_screenshot(code, viewer, notebook, result_name, key)
+                if use_napari:
+                    _viewer_add_image_and_notebook_screenshot(code, viewer, notebook, result_name, key)
+                elif notebook:
+                    code.append(result_name + "\n")
 
             except KeyError:
                 try:
@@ -567,7 +578,11 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer, notebook: b
                             code.append(f"")
 
                         code.append(f"{result_name} = imread(\"" + str(layer.source.path).replace("\\", "/") + "\")")
-                        _viewer_add_image_and_notebook_screenshot(code, viewer, notebook, result_name, key)
+                        if use_napari:
+                            _viewer_add_image_and_notebook_screenshot(code, viewer, notebook, result_name, key)
+                        elif notebook:
+                            code.append(result_name + "\n")
+
                     else:
                         if notebook:
                             code.append(f"# Please enter code for loading '{key}' here.")
@@ -587,17 +602,20 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer, notebook: b
     from textwrap import dedent
 
     # put some code in front
-    if not notebook:
-        preamble = dedent("""
-            import napari
-            if 'viewer' not in globals():
+    if use_napari:
+        if not notebook:
+            preamble = dedent("""
+                import napari
+                if 'viewer' not in globals():
+                    viewer = napari.Viewer()
+                """).strip()
+        else:
+            preamble = dedent("""
+                import napari
                 viewer = napari.Viewer()
-            """).strip()
+                """).strip()
     else:
-        preamble = dedent("""
-            import napari
-            viewer = napari.Viewer()
-            """).strip()
+        preamble = ""
 
     if len(viewer.dims.current_step) > 3:
         preamble = preamble + "\n\n" + dedent("""            
