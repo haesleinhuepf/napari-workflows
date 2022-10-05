@@ -235,9 +235,9 @@ class WorkflowManager():
         self.worker.resume()
         self._is_active = True
 
-    def is_paused(self) -> bool:
+    def is_update_paused(self) -> bool:
         """Return the current worker state."""
-        return self._is_active
+        return not self._is_active
 
     def invalidate(self, items):
         """
