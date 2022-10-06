@@ -8,16 +8,25 @@
 [![Development Status](https://img.shields.io/pypi/status/napari-workflows.svg)](https://en.wikipedia.org/wiki/Software_release_life_cycle#Alpha)
 
 This repository contains data structures for managing image processing workflows in napari. 
-There are no user interface in this repository as it serves as backend. 
-Multiple front-ends for manually managing workflows are available in these napari plugins:
-* [napari_pyclesperanto_assistant](https://github.com/clesperanto/napari_pyclesperanto_assistant)
+There are no user interface in this repository as it serves as backend.
+Multiple front-ends for managing workflows are available in these napari plugins:
+* [napari-assistant](https://github.com/haesleinhuepf/napari-assistant)
+* [napari-lattice](https://www.napari-hub.org/plugins/napari-lattice)
+* [napari-script-editor](https://www.napari-hub.org/plugins/napari-script-editor)
 * [napari-workflow-optimizer](https://github.com/haesleinhuepf/napari-workflow-optimizer)
 * [napari-workflow-inspector](https://github.com/haesleinhuepf/napari-workflow-inspector)
 
+Using workflows, you can combine functions from these napari plugins in workflows:
+* [devbio-napari](https://www.napari-hub.org/plugins/devbio-napari)
+* [napari-accelerated-pixel-and-object-classification](https://www.napari-hub.org/plugins/napari-accelerated-pixel-and-object-classification)
+* [napari-cupy-image-processing](https://www.napari-hub.org/plugins/napari-cupy-image-processing)
+* [napari-segment-blobs-and-things-with-membranes](https://www.napari-hub.org/plugins/napari-segment-blobs-and-things-with-membranes)
+* [napari-simpleitk-image-processing](https://www.napari-hub.org/plugins/napari-simpleitk-image-processing)
+* [napari_pyclesperanto_assistant](https://github.com/clesperanto/napari_pyclesperanto_assistant)
+
 If you want to learn how these workflows function under the hood, the 
 [demo notebook](https://github.com/haesleinhuepf/napari-workflows/blob/main/docs/demo.ipynb) 
-gives some insights. A public API for extending these workflows with custom functions and other
-napari plugins will be published in spring 2022. Stay tuned or [get in touch](https://github.com/haesleinhuepf/napari-workflows/issues).
+gives some insights. 
 
 ----------------------------------
 
