@@ -1,5 +1,3 @@
-import napari
-from napari import Viewer
 import numpy as np
 import inspect
 from dask.threaded import get as dask_get
@@ -161,7 +159,7 @@ class Workflow():
         for result, task in self._tasks.items():
             # Define new Parameters to print that don't include the napari viewer
             # This makes printing the workflow more readable
-            print_params = tuple([param for param in task if not isinstance(param,Viewer)])
+            print_params = tuple([param for param in task if not "napari.viewer.Viewer" in str(type(param))])
 
             out = out + result + " <- "+ str(print_params) + "\n"
         return out
@@ -173,7 +171,7 @@ class WorkflowManager():
     """
 
     @classmethod
-    def install(cls, viewer: napari.Viewer, _for_testing:bool = False):
+    def install(cls, viewer: "napari.Viewer", _for_testing:bool = False):
         """
         Installs a workflow manager to a given napari Viewer (if not done earlier already) and returns it.
         """
@@ -187,14 +185,14 @@ class WorkflowManager():
 
         return WorkflowManager.viewers_managers[viewer]
 
-    def __init__(self, viewer: napari.Viewer, _for_testing:bool = False):
+    def __init__(self, viewer: "napari.Viewer", _for_testing:bool = False):
         from ._undo_redo_functionality import UndoRedoController
         """
         Use WorkflowManager.install(viewer) instead of this constructor.
 
         Parameters
         ----------
-        viewer: napari.Viewer
+        viewer: "napari.Viewer"
         """
         self.viewer = viewer
         self.workflow: Workflow = Workflow()
@@ -269,6 +267,7 @@ class WorkflowManager():
         kwargs: dict
         """
         # preprocessing of args and kwargs
+        from napari import Viewer
         kwargs = {k:v for k,v in kwargs.items() if not ((isinstance(v, Viewer)) or (k == 'viewer'))}
         args = list(args)
         for i in range(len(args)):
@@ -356,7 +355,7 @@ class WorkflowManager():
 
         return None
 
-    def _register_events_to_viewer(self, viewer: napari.Viewer):
+    def _register_events_to_viewer(self, viewer: "napari.Viewer"):
         """
         This function internally registers events at a given viewer so that we can
         react if something is happening, e.g. layers are added/removed.
@@ -400,6 +399,7 @@ class WorkflowManager():
         self.workflow.remove(name)
 
     def _slider_updated(self, event):
+        import napari
         slider = event.value
         # print("Slider updated", event.value, type(event.value))
         if len(slider) == 4: # a time-slider exists
@@ -412,13 +412,13 @@ class WorkflowManager():
         #print("Layer selection changed", event)
 
 
-def _viewer_has_layer(viewer: napari.Viewer, name: str):
+def _viewer_has_layer(viewer: "napari.Viewer", name: str):
     """
     Checks if a viewer contains a layer named as specified.
 
     Parameters
     ----------
-    viewer: napari.Viewer
+    viewer: "napari.Viewer"
     name: str
 
     Returns
@@ -434,7 +434,7 @@ def _viewer_has_layer(viewer: napari.Viewer, name: str):
         return False
 
 
-def _get_layer_from_data(viewer: napari.Viewer, data):
+def _get_layer_from_data(viewer: "napari.Viewer", data):
     """
     Returns the layer in viewer that has the given data or None if such a layer doesn't exist.
     """
@@ -461,7 +461,7 @@ def _get_layer_from_data(viewer: napari.Viewer, data):
     return None
 
 
-def _generate_python_code(workflow: Workflow, viewer: napari.Viewer, notebook: bool = False, use_napari:bool = True):
+def _generate_python_code(workflow: Workflow, viewer: "napari.Viewer", notebook: bool = False, use_napari:bool = True):
     """
     Takes a Workflow and a viewer an generates python code corresponding to the workflow.
     Precondition: The used functions must be compatible with Workflows and register their
@@ -471,7 +471,7 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer, notebook: b
     ----------
     workflow: Workflow
         The workflow which should be converted to code.
-    viewer: napari.Viewer
+    viewer: "napari.Viewer"
         The viewer where the workflow was set up.
     notebook: bool, optional
         In case code is generated for jupyter notebooks, it looks a bit different.
@@ -651,6 +651,8 @@ def _generate_python_code(workflow: Workflow, viewer: napari.Viewer, notebook: b
     return complete_code
 
 def _viewer_add_image_and_notebook_screenshot(code, viewer, notebook, result_name, key):
+    import napari
+
     # add code that shows the result in a layer
     if _viewer_has_layer(viewer, key):
         if isinstance(viewer.layers[key], napari.layers.Labels):
@@ -662,7 +664,7 @@ def _viewer_add_image_and_notebook_screenshot(code, viewer, notebook, result_nam
             code.append("napari.utils.nbscreenshot(viewer)")
         code.append("")
 
-def _layer_name_or_value(value, viewer: napari.Viewer):
+def _layer_name_or_value(value, viewer: "napari.Viewer"):
     """
     Checks if there is a layer in the viewer where layer.data == value. If so,
     it returns the name of the layer. Otherwise, it returns value.
@@ -670,7 +672,7 @@ def _layer_name_or_value(value, viewer: napari.Viewer):
     Parameters
     ----------
     value: ndarray
-    viewer: napari.Viewer
+    viewer: "napari.Viewer"
 
     Returns
     -------
@@ -706,7 +708,7 @@ def _break_down_4d_to_2d_kwargs(arguments, current_timepoint, viewer):
         dictionary of function arguments
     current_timepoint: int
         current timepoint selected in the Viewer
-    viewer: napari.Viewer
+    viewer: "napari.Viewer"
         The viewer is necessary to find out if a string in the argument list corresponds to a layer
         in the viewer.
     """
@@ -738,7 +740,7 @@ def _break_down_4d_to_2d_args(arguments, current_timepoint, viewer):
             list of function arguments
         current_timepoint: int
             current timepoint selected in the Viewer
-        viewer: napari.Viewer
+        viewer: "napari.Viewer"
             The viewer is necessary to find out if a string in the argument list corresponds to a layer
             in the viewer.
         """
