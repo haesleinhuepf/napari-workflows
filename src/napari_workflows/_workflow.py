@@ -1,7 +1,5 @@
 import numpy as np
 import inspect
-from dask.threaded import get as dask_get
-from napari._qt.qthreading import thread_worker
 import time
 from functools import partial
 
@@ -78,6 +76,7 @@ class Workflow():
         """
         Execute a task and all tasks that are necessary to retrieve the result.
         """
+        from dask.threaded import get as dask_get
         return dask_get(self._tasks, name)
 
     def get_task(self, name):
@@ -194,6 +193,8 @@ class WorkflowManager():
         ----------
         viewer: "napari.Viewer"
         """
+        from napari._qt.qthreading import thread_worker
+
         self.viewer = viewer
         self.workflow: Workflow = Workflow()
         self.undo_redo_controller = UndoRedoController(self.workflow, viewer)
@@ -201,7 +202,7 @@ class WorkflowManager():
         self.worker = None
         self._is_active = True
 
-        # The thread workwer will run in the background and check if images have to be recomputed.
+        # The thread worker will run in the background and check if images have to be recomputed.
         @thread_worker
         def loop_run():
            while True:  # endless loop
