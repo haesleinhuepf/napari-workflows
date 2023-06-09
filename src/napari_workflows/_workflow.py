@@ -500,7 +500,7 @@ def _generate_python_code(workflow: Workflow, viewer: "napari.Viewer", notebook:
                 temp = value
                 temp = temp.replace("Result of ", "")
                 temp = temp.replace(" result", "")
-                temp = "".join([t[0] for t in temp.split("_")])
+                temp = "".join([t[0] for t in temp.split("_") if t != ""])
                 new_name = "image" + str(len(image_variable_names)) + "_" + temp
                 image_variable_names[value] = new_name
 
