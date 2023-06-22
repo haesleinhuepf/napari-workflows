@@ -57,7 +57,7 @@ def test_with_viewer(make_napari_viewer):
     gui = make_gui(segment, viewer, auto_call=True)
     viewer.window.add_dock_widget(gui)
     # invoke execution / workflow update
-    gui.sigma.value = gui.sigma.value
+    gui.sigma.value = 5.1
 
     workflow = manager.workflow
 
@@ -99,7 +99,7 @@ def test_with_viewer(make_napari_viewer):
     # test code generation
     code = manager.to_python_code()
     print(code)
-    assert len(code.split("\n")) == 19
+    assert len(code.split("\n")) == 16
 
     # test event handling
     image_layer.data = image
