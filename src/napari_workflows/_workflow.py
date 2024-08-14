@@ -7,7 +7,6 @@ METADATA_WORKFLOW_VALID_KEY = "workflow_valid"
 
 CURRENT_TIME_FRAME_DATA = "current_time_frame_data"
 
-
 class Workflow():
     """
     The Workflow class encapsulates a dictionary that works as dask-task-graph. The task
@@ -162,7 +161,6 @@ class Workflow():
 
             out = out + result + " <- "+ str(print_params) + "\n"
         return out
-
 
 class WorkflowManager():
     """
@@ -482,7 +480,7 @@ def _generate_python_code(workflow: Workflow, viewer: "napari.Viewer", notebook:
     str
         python code
     """
-    imports = ["from skimage.io import imread"]
+    imports = ["from skimage.io import imread", "import stackview"]
     code = []
 
     import dask
@@ -589,7 +587,7 @@ def _generate_python_code(workflow: Workflow, viewer: "napari.Viewer", notebook:
                 if use_napari:
                     _viewer_add_image_and_notebook_screenshot(code, viewer, notebook, result_name, key)
                 elif notebook:
-                    code.append(result_name + "\n")
+                    code.append(f"stackview.insight({result_name})\n")
 
             except KeyError:
                 try:
@@ -605,7 +603,7 @@ def _generate_python_code(workflow: Workflow, viewer: "napari.Viewer", notebook:
                         if use_napari:
                             _viewer_add_image_and_notebook_screenshot(code, viewer, notebook, result_name, key)
                         elif notebook:
-                            code.append(result_name + "\n")
+                            code.append(f"stackview.insight({result_name})\n")
 
                     else:
                         if notebook:
