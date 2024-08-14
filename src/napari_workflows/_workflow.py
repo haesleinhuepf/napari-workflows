@@ -493,10 +493,16 @@ def _generate_python_code(workflow: Workflow, viewer: "napari.Viewer", notebook:
     image_variable_names = {}
 
     def python_conform_variable_name(value):
+        import os
         if isinstance(value, str):
-            if value not in image_variable_names:
+            print("File", value, "exists:", os.path.exists(value))
+            if os.path.exists(value):
+                return f"'{value}'"
+
+            if value not in image_variable_names and not os.path.exists(value):
                 # Make a short and readable variable name, e.g. turn a layer
-                # "Resut of Gaussian blur" into "image1_gb".
+                # "Result of Gaussian blur" into "image1_gb".
+                # don't do this with file names
                 temp = value
                 temp = temp.replace("Result of ", "")
                 temp = temp.replace(" result", "")
