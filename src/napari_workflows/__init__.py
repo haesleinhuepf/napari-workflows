@@ -1,5 +1,5 @@
 
-__version__ = "0.2.10"
+__version__ = "0.2.11"
 
 from ._workflow import Workflow
 from ._workflow import WorkflowManager
