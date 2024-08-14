@@ -85,3 +85,4 @@ venv/
 
 test.yaml
 src/napari_workflows/_undo_redo_functionality presentation.py
+deploy.bat
