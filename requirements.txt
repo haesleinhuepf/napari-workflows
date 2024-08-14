@@ -6,4 +6,5 @@ numpy
 napari
 dask
 autopep8
+stackview
 -e .

@@ -99,7 +99,7 @@ def test_with_viewer(make_napari_viewer):
     # test code generation
     code = manager.to_python_code()
     print(code)
-    assert len(code.split("\n")) == 16
+    assert len(code.split("\n")) == 17
 
     # test event handling
     image_layer.data = image
