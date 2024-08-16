@@ -16,8 +16,6 @@ METADATA_WORKFLOW_VALID_KEY = "workflow_valid"
 
 CURRENT_TIME_FRAME_DATA = "current_time_frame_data"
 
-Task = Tuple[Any, ...]
-
 class Workflow:
     """
     The Workflow class encapsulates a dictionary that works as dask-task-graph. The task
@@ -27,7 +25,12 @@ class Workflow:
     the result of the specified task.
     """
 
-    _tasks: dict[str, Task]
+    _tasks: dict[str, Any]
+    """
+    A task is either a callable task with type: `tuple[Callable, Any, ...]` where the latter arguments are arguments to the function
+    Alternatively, a task can be a data task, which can have any other type.
+    Unfortunately these types can't really be expressed in the current type system
+    """
 
     def __init__(self):
         # We start with an empty workflow with no tasks
@@ -99,7 +102,7 @@ class Workflow:
         """
         return self._tasks[name]
 
-    def set_task(self, name: str, task: Task):
+    def set_task(self, name: str, task: Any):
         """
         Replaces a given task.
         """
