@@ -1,3 +1,4 @@
+from typing import Any, Iterable, Tuple
 import numpy as np
 import inspect
 import time
@@ -103,15 +104,24 @@ class Workflow():
         for r in to_remove:
             del self._tasks[r]
 
+    def _function_tasks(self) -> Iterable[Tuple[str, Any]]:
+        """
+        Yields tasks that are functions, ie those that are callable
+        """
+        for key, task in self._tasks.items():
+            if isinstance(task, tuple) and callable(task[0]):
+                yield key, task
+
     def roots(self):
         """
         Return all names of images that have no pre-processing steps.
         """
         origins = []
 
-        keys_with_functions = [key for key, task in self._tasks.items() if callable(task[0])]
+        function_tasks = list(self._function_tasks())
+        keys_with_functions = [key for key, value in function_tasks]
 
-        for result, task in self._tasks.items():
+        for key, task in function_tasks:
             for source in task:
                 if isinstance(source, str):
                     if not source in keys_with_functions:
@@ -124,7 +134,7 @@ class Workflow():
         Return all names of images that are produced out of a given image.
         """
         followers = []
-        for result, task in self._tasks.items():
+        for result, task in self._function_tasks():
             for source in task:
                 if isinstance(source, str):
                     if source == item:
