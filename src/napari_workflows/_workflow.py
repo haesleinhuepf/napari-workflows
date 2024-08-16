@@ -1,4 +1,4 @@
-from typing import Any, Collection, Dict, Iterable, Iterator, List, Optional, TypeAlias, Tuple, Union, Callable, TYPE_CHECKING
+from typing import Any, Collection, Dict, Iterable, Iterator, List, Optional, Tuple, Union, Callable, TYPE_CHECKING
 import numpy as np
 import inspect
 import time
