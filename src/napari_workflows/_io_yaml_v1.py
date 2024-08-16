@@ -1,13 +1,12 @@
 from ._workflow import Workflow
-import numpy as np
 
-def save_workflow(filename:str, workflow:Workflow):
+def save_workflow(filename: str, workflow: Workflow):
     """Save a workflow to a file on disk.
 
     Parameters
     ----------
-    filename: str
-    workflow: Workflow
+    filename:
+    workflow:
     """
     # Filter out workflow steps that do not represent a processing step
     workflow_to_save = Workflow()
@@ -20,7 +19,7 @@ def save_workflow(filename:str, workflow:Workflow):
     with open(filename, 'w') as stream:
         dump(workflow_to_save,stream)
 
-def load_workflow(filename:str) -> Workflow:
+def load_workflow(filename: str) -> Workflow:
     """Load a workflow from a file on disk.
 
     Parameters
