@@ -47,15 +47,7 @@ class Workflow():
         bound.apply_defaults()
         # Go through arguments and in case it's a callable, remove it
         # We should only have numbers, strings and images as parameters
-        used_args = [value for key, value in bound.arguments.items()]
-
-        for i in range(len(used_args)):
-            if callable(used_args[i]):
-                used_args[i] = None
-
-        # Remove None parameters from the end
-        while (used_args[-1] is None):
-            used_args = used_args[:-1]
+        used_args = [value for key, value in bound.arguments.items() if not callable(value)]
 
         # Store the task
         self._tasks[name] = tuple([func_or_data] + used_args)
