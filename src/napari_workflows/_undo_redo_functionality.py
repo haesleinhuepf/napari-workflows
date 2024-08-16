@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import List, Callable
 
 import warnings
-from ._workflow import Workflow
+from ._workflow import Workflow, _layer_name_or_value
 from napari import Viewer
 
 @dataclass
