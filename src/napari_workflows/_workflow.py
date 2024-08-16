@@ -1,14 +1,22 @@
+from typing import Any, Collection, Dict, Iterable, Iterator, List, Optional, Tuple, Union, Callable, TYPE_CHECKING
 import numpy as np
 import inspect
 import time
 from functools import partial
 
+if TYPE_CHECKING:
+    import napari
+    from napari.utils.events import Event
+    from napari.layers import Layer
+    from ._undo_redo_functionality import UndoRedoController
+    from napari._qt.qthreading import GeneratorWorker
+    from numpy.typing import NDArray
+
 METADATA_WORKFLOW_VALID_KEY = "workflow_valid"
 
 CURRENT_TIME_FRAME_DATA = "current_time_frame_data"
 
-
-class Workflow():
+class Workflow:
     """
     The Workflow class encapsulates a dictionary that works as dask-task-graph. The task
     dictionary `str:tuple` spans a graph, because in the tuple, also strings can appear,
@@ -17,22 +25,31 @@ class Workflow():
     the result of the specified task.
     """
 
+    _tasks: dict[str, Any]
+    """
+    A task is either a callable task with type: `tuple[Callable, Any, ...]` where the latter arguments are arguments to the function
+    Alternatively, a task can be a data task, which can have any other type.
+    Unfortunately these types can't really be expressed in the current type system
+    """
+
     def __init__(self):
         # We start with an empty workflow with no tasks
         self._tasks = {}
 
-    def set(self, name, func_or_data, *args, **kwargs):
+    def set(self, name: str, func_or_data: Any, *args: Any, **kwargs: Any) -> None:
         """
         Add a task to the workflow
 
         Parameters
         ----------
-        name : str
+        name:
             name of the task; typically corresponds to the layer name which is produced using the task
-        func_or_data: callable or ndarray
+        func_or_data:
             the function which produces the image data or the data itself
-        args: list
-        kwargs: dict
+        args:
+            Additional positional arguments to `func_or_data`, if it is callable
+        kwargs:
+            Additional keywork arguments to `func_or_data`, if it is callable
 
         """
         # If it's not a function, just store the data
@@ -47,7 +64,7 @@ class Workflow():
         bound.apply_defaults()
         # Go through arguments and in case it's a callable, remove it
         # We should only have numbers, strings and images as parameters
-        used_args = [value for key, value in bound.arguments.items()]
+        used_args = [value for _key, value in bound.arguments.items()]
 
         for i in range(len(used_args)):
             if callable(used_args[i]):
@@ -60,38 +77,38 @@ class Workflow():
         # Store the task
         self._tasks[name] = tuple([func_or_data] + used_args)
 
-    def remove(self, name):
+    def remove(self, name: str):
         """
         Removes a given task from the workflow
 
         Parameters
         ----------
-        name : str
-            name of the taks to be removed, typically corresponds to the layer name
+        name :
+            name of the task to be removed, typically corresponds to the layer name
         """
         if name in self._tasks.keys():
             self._tasks.pop(name)
 
-    def get(self, name):
+    def get(self, name: str) -> Any:
         """
         Execute a task and all tasks that are necessary to retrieve the result.
         """
         from dask.threaded import get as dask_get
         return dask_get(self._tasks, name)
 
-    def get_task(self, name):
+    def get_task(self, name: str):
         """
         Returns the tuple that represents a task.
         """
         return self._tasks[name]
 
-    def set_task(self, name, task):
+    def set_task(self, name: str, task: Any):
         """
         Replaces a given task.
         """
         self._tasks[name] = task
 
-    def remove_all_except(self, names):
+    def remove_all_except(self, names: Collection[str]):
         """
         Removes all tasks except those specified by their names.
 
@@ -103,15 +120,15 @@ class Workflow():
         for r in to_remove:
             del self._tasks[r]
 
-    def roots(self):
+    def roots(self) -> List[str]:
         """
         Return all names of images that have no pre-processing steps.
         """
-        origins = []
+        origins: List[str] = []
 
         keys_with_functions = [key for key, task in self._tasks.items() if callable(task[0])]
 
-        for result, task in self._tasks.items():
+        for _result, task in self._tasks.items():
             for source in task:
                 if isinstance(source, str):
                     if not source in keys_with_functions:
@@ -119,11 +136,11 @@ class Workflow():
                             origins.append(source)
         return origins
 
-    def followers_of(self, item):
+    def followers_of(self, item: str) -> List[str]:
         """
         Return all names of images that are produced out of a given image.
         """
-        followers = []
+        followers: List[str] = []
         for result, task in self._tasks.items():
             for source in task:
                 if isinstance(source, str):
@@ -132,7 +149,7 @@ class Workflow():
                             followers.append(result)
         return followers
 
-    def sources_of(self, item):
+    def sources_of(self, item: str) -> List[str]:
         """
         Returns all names of images that need to be there to produce a given image.
         """
@@ -141,19 +158,19 @@ class Workflow():
         task = self._tasks[item]
         return [i for i in task if isinstance(i, str)]
 
-    def leafs(self):
+    def leafs(self) -> List[str]:
         """
         Returns all image names that have no further processing steps.
         """
         return [l for l in self._tasks.keys() if len(self.followers_of(l)) == 0]
 
-    def clear(self):
+    def clear(self) -> None:
         """
         Removes all workflow steps stored in self._tasks
         """
         self._tasks = {}
 
-    def __str__(self):
+    def __str__(self) -> str:
         out = "Workflow:\n"
         for result, task in self._tasks.items():
             # Define new Parameters to print that don't include the napari viewer
@@ -164,13 +181,19 @@ class Workflow():
         return out
 
 
-class WorkflowManager():
+class WorkflowManager:
     """
     The workflow manager is attached to a given napari Viewer once any Workflow step is executed.
     """
 
+    viewer: "napari.Viewer"
+    workflow: Workflow
+    undo_redo_controller: UndoRedoController
+    worker: GeneratorWorker
+    _is_active: bool
+
     @classmethod
-    def install(cls, viewer: "napari.Viewer", _for_testing:bool = False):
+    def install(cls, viewer: "napari.Viewer", _for_testing: bool = False):
         """
         Installs a workflow manager to a given napari Viewer (if not done earlier already) and returns it.
         """
@@ -196,7 +219,7 @@ class WorkflowManager():
         from napari._qt.qthreading import thread_worker
 
         self.viewer = viewer
-        self.workflow: Workflow = Workflow()
+        self.workflow = Workflow()
         self.undo_redo_controller = UndoRedoController(self.workflow, viewer)
         self._register_events_to_viewer(viewer)
         self.worker = None
@@ -204,7 +227,7 @@ class WorkflowManager():
 
         # The thread worker will run in the background and check if images have to be recomputed.
         @thread_worker
-        def loop_run():
+        def loop_run() -> Iterator[None]:
            while True:  # endless loop
                time.sleep(0.05)
                yield self._update_invalid_layer()
@@ -214,7 +237,7 @@ class WorkflowManager():
             self.worker = loop_run()
 
             # in case some layer was updated by the thread worker, this function will receive the new data
-            def update_layer(whatever):
+            def update_layer(whatever: Union[None, Tuple[str, Any]]) -> None:
                 if whatever is not None:
                     name, data = whatever
                     if _viewer_has_layer(self.viewer, name):
@@ -238,7 +261,7 @@ class WorkflowManager():
         """Return the current worker state."""
         return not self._is_active
 
-    def invalidate(self, items):
+    def invalidate(self, items: Iterable[str]) -> None:
         """
         Invalidates layers with given names so that is it recomputed as soon as there is time for that.
 
@@ -253,7 +276,7 @@ class WorkflowManager():
                 layer.metadata[METADATA_WORKFLOW_VALID_KEY] = False
                 self.invalidate(self.workflow.followers_of(f))
 
-    def update(self, target_layer, function, *args, **kwargs):
+    def update(self, target_layer: Layer, function: Callable, *args: Any, **kwargs: Any):
         """
         Update the task representing a given layer in the stored workflow by providing
         the function and parameters that generated the data in the layer.
@@ -262,10 +285,10 @@ class WorkflowManager():
 
         Parameters
         ----------
-        target_layer: napari.layers.Layer
-        function: callable
-        args: list
-        kwargs: dict
+        target_layer:
+        function:
+        args:
+        kwargs:
         """
         # preprocessing of args and kwargs
         from napari import Viewer
@@ -289,26 +312,26 @@ class WorkflowManager():
         target_layer.metadata[METADATA_WORKFLOW_VALID_KEY] = True
         self.invalidate(self.workflow.followers_of(target_layer.name))
 
-    def _update_workflow_step(self, target_layer, function, args, kwargs):
+    def _update_workflow_step(self, target_layer: Layer, function: Callable, args: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
         # setting of workflow step
         self.workflow.set(target_layer.name, function, *args, **kwargs)
         self._remove_zombies()
 
-    def remove_zombies(self):
+    def remove_zombies(self) -> None:
         """
         Removes workflow steps which are not represented by a layer
         This step is recorded for undo/redo
         """
         self.undo_redo_controller.execute(self._remove_zombies)
 
-    def _remove_zombies(self):
+    def _remove_zombies(self) -> None:
         """
         Removes workflow steps which are not represented by a layer
         """
         layer_names = [layer.name for layer in self.viewer.layers]
         self.workflow.remove_all_except(layer_names)
 
-    def to_python_code(self, notebook=False, use_napari:bool=True):
+    def to_python_code(self, notebook: bool=False, use_napari: bool=True) -> str:
         """
         Output the current workflow in the viewer as python code.
 
@@ -318,7 +341,7 @@ class WorkflowManager():
         """
         return _generate_python_code(self.workflow, self.viewer, notebook=notebook, use_napari=use_napari)
 
-    def _update_invalid_layer(self):
+    def _update_invalid_layer(self) -> None:
         """
         Searches for the next layer that should be updated because it's invalid.
         """
@@ -331,13 +354,13 @@ class WorkflowManager():
         except Exception as a:
             print("Error while updating", layer.name, a)
 
-    def _search_first_invalid_layer(self, items):
+    def _search_first_invalid_layer(self, items: Collection[str]) -> Any:
         """
         Recursively searches for the next layer that sould be udpated in the graph of tasks.
 
         Parameters
         ----------
-        items: list[str]
+        items:
             List of task names; typically starts at roots().
 
         Returns
@@ -367,40 +390,40 @@ class WorkflowManager():
         viewer.layers.events.removed.connect(self._layer_removed)
         viewer.layers.selection.events.changed.connect(self._layer_selection_changed)
 
-    def _register_events_to_layer(self, layer):
+    def _register_events_to_layer(self, layer: Layer) -> None:
         """
         This function adds events to a layer so that we can react, e.g. in case
         its data is updated.
         """
         layer.events.data.connect(self._layer_data_updated)
 
-    def _layer_data_updated(self, event):
+    def _layer_data_updated(self, event: Event) -> None:
         #print("Layer data updated", event.source, type(event.source))
         event.source.metadata[METADATA_WORKFLOW_VALID_KEY] = True
         for f in self.workflow.followers_of(str(event.source)):
             if _viewer_has_layer(self.viewer, f):
-                layer = self.viewer.layers[f]
+                _layer = self.viewer.layers[f]
                 self.invalidate(self.workflow.followers_of(f))
 
-    def _layer_added(self, event):
+    def _layer_added(self, event: Event):
         #print("Layer added", event.value, type(event.value))
         self._register_events_to_layer(event.value)
 
-    def _layer_removed(self, event):
+    def _layer_removed(self, event: Event):
         """
         Remove a layer from the workflow as specified by a napari event
         This step is recorded for undo/redo
         """
         self.undo_redo_controller.execute(partial(self._remove_layer_from_workflow, event.value.name))
 
-    def _remove_layer_from_workflow(self, name):
+    def _remove_layer_from_workflow(self, name: str) -> None:
         """
         Remove a layer from the workflow as specified by name
         """
         self.workflow.remove(name)
 
-    def _slider_updated(self, event):
-        import napari
+    def _slider_updated(self, event: Event) -> None:
+        import napari.layers
         slider = event.value
         # print("Slider updated", event.value, type(event.value))
         if len(slider) == 4: # a time-slider exists
@@ -408,19 +431,19 @@ class WorkflowManager():
                 if (not isinstance(l, (napari.layers.Labels, napari.layers.Image))) or len(l.data.shape) == 4:
                     self.invalidate(self.workflow.followers_of(l.name))
 
-    def _layer_selection_changed(self, event):
+    def _layer_selection_changed(self, event: Event) -> None:
         pass
         #print("Layer selection changed", event)
 
 
-def _viewer_has_layer(viewer: "napari.Viewer", name: str):
+def _viewer_has_layer(viewer: "napari.Viewer", name: str) -> bool:
     """
     Checks if a viewer contains a layer named as specified.
 
     Parameters
     ----------
-    viewer: "napari.Viewer"
-    name: str
+    viewer:
+    name:
 
     Returns
     -------
@@ -435,7 +458,7 @@ def _viewer_has_layer(viewer: "napari.Viewer", name: str):
         return False
 
 
-def _get_layer_from_data(viewer: "napari.Viewer", data):
+def _get_layer_from_data(viewer: "Union[napari.Viewer, None]", data: Any) -> Optional[Layer]:
     """
     Returns the layer in viewer that has the given data or None if such a layer doesn't exist.
     """
@@ -462,7 +485,7 @@ def _get_layer_from_data(viewer: "napari.Viewer", data):
     return None
 
 
-def _generate_python_code(workflow: Workflow, viewer: "napari.Viewer", notebook: bool = False, use_napari:bool = True):
+def _generate_python_code(workflow: Workflow, viewer: "napari.Viewer", notebook: bool = False, use_napari:bool = True) -> str:
     """
     Takes a Workflow and a viewer an generates python code corresponding to the workflow.
     Precondition: The used functions must be compatible with Workflows and register their
@@ -514,7 +537,7 @@ def _generate_python_code(workflow: Workflow, viewer: "napari.Viewer", notebook:
         else:
             return str(value)
 
-    def build_output(list_of_items):
+    def build_output(list_of_items: List[str]):
         """
         This function is called to generate code that represents the
         image data flow graph stored in workflow. The graph should be
@@ -523,7 +546,7 @@ def _generate_python_code(workflow: Workflow, viewer: "napari.Viewer", notebook:
 
         Parameters
         ----------
-        list_of_items: list[str]
+        list_of_items:
             layer names that should be computed iteratively
 
         Returns
@@ -657,8 +680,8 @@ def _generate_python_code(workflow: Workflow, viewer: "napari.Viewer", notebook:
 
     return complete_code
 
-def _viewer_add_image_and_notebook_screenshot(code, viewer, notebook, result_name, key):
-    import napari
+def _viewer_add_image_and_notebook_screenshot(code: List[str], viewer: "napari.Viewer", notebook: bool, result_name: str, key: str) -> None:
+    import napari.layers
 
     # add code that shows the result in a layer
     if _viewer_has_layer(viewer, key):
@@ -671,15 +694,15 @@ def _viewer_add_image_and_notebook_screenshot(code, viewer, notebook, result_nam
             code.append("napari.utils.nbscreenshot(viewer)")
         code.append("")
 
-def _layer_name_or_value(value, viewer: "napari.Viewer"):
+def _layer_name_or_value(value: NDArray, viewer: "napari.Viewer")-> str | NDArray[Any]:
     """
     Checks if there is a layer in the viewer where layer.data == value. If so,
     it returns the name of the layer. Otherwise, it returns value.
 
     Parameters
     ----------
-    value: ndarray
-    viewer: "napari.Viewer"
+    value:
+    viewer: 
 
     Returns
     -------
@@ -690,7 +713,7 @@ def _layer_name_or_value(value, viewer: "napari.Viewer"):
         return layer.name
     return value
 
-def _layer_invalid(layer):
+def _layer_invalid(layer: Layer):
     """
     Returns if the data in a given layer is valid or should be re-computed because parameters were changed.
     """
@@ -701,7 +724,7 @@ def _layer_invalid(layer):
 
 
 # todo: this function should live in napari-time-slicer
-def _break_down_4d_to_2d_kwargs(arguments, current_timepoint, viewer):
+def _break_down_4d_to_2d_kwargs(arguments: Dict[str, Any], current_timepoint: int, viewer: "napari.Viewer") -> None:
     """
     Goes through a dictionary of arguments and identifies image data arguments with 4 dimensions.
     If there is any layer in the viewer where layer.data corresponds to this image, it assumes that
@@ -711,11 +734,11 @@ def _break_down_4d_to_2d_kwargs(arguments, current_timepoint, viewer):
 
     Parameters
     ----------
-    arguments: dict
+    arguments:
         dictionary of function arguments
-    current_timepoint: int
+    current_timepoint:
         current timepoint selected in the Viewer
-    viewer: "napari.Viewer"
+    viewer:
         The viewer is necessary to find out if a string in the argument list corresponds to a layer
         in the viewer.
     """
@@ -733,7 +756,7 @@ def _break_down_4d_to_2d_kwargs(arguments, current_timepoint, viewer):
 
 
 # todo: this function should live in napari-time-slicer
-def _break_down_4d_to_2d_args(arguments, current_timepoint, viewer):
+def _break_down_4d_to_2d_args(arguments: List[Any], current_timepoint: int, viewer: "napari.Viewer") -> None:
     """
         Goes through a list of arguments and identifies image data arguments with 4 dimensions.
         If there is any layer in the viewer where layer.data corresponds to this image, it assumes that
@@ -743,11 +766,11 @@ def _break_down_4d_to_2d_args(arguments, current_timepoint, viewer):
 
         Parameters
         ----------
-        arguments: list
+        arguments:
             list of function arguments
-        current_timepoint: int
+        current_timepoint:
             current timepoint selected in the Viewer
-        viewer: "napari.Viewer"
+        viewer:
             The viewer is necessary to find out if a string in the argument list corresponds to a layer
             in the viewer.
         """
@@ -762,5 +785,5 @@ def _break_down_4d_to_2d_args(arguments, current_timepoint, viewer):
                 arguments[i] = new_value
                 layer.metadata[CURRENT_TIME_FRAME_DATA] = new_value
 
-def is_image(something):
+def is_image(something: Any) -> bool:
     return hasattr(something, "dtype") and hasattr(something, "shape")
