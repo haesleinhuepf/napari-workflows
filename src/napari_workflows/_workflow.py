@@ -5,7 +5,7 @@ import time
 from functools import partial
 
 if TYPE_CHECKING:
-    from napari import Viewer
+    import napari
     from napari.utils.events import Event
     from napari.layers import Layer
     from ._undo_redo_functionality import UndoRedoController
@@ -186,14 +186,14 @@ class WorkflowManager:
     The workflow manager is attached to a given napari Viewer once any Workflow step is executed.
     """
 
-    viewer: "Viewer"
+    viewer: "napari.Viewer"
     workflow: Workflow
     undo_redo_controller: UndoRedoController
     worker: GeneratorWorker
     _is_active: bool
 
     @classmethod
-    def install(cls, viewer: "Viewer", _for_testing: bool = False):
+    def install(cls, viewer: "napari.Viewer", _for_testing: bool = False):
         """
         Installs a workflow manager to a given napari Viewer (if not done earlier already) and returns it.
         """
@@ -207,7 +207,7 @@ class WorkflowManager:
 
         return WorkflowManager.viewers_managers[viewer]
 
-    def __init__(self, viewer: "Viewer", _for_testing:bool = False):
+    def __init__(self, viewer: "napari.Viewer", _for_testing:bool = False):
         from ._undo_redo_functionality import UndoRedoController
         """
         Use WorkflowManager.install(viewer) instead of this constructor.
@@ -379,7 +379,7 @@ class WorkflowManager:
 
         return None
 
-    def _register_events_to_viewer(self, viewer: Viewer):
+    def _register_events_to_viewer(self, viewer: "napari.Viewer"):
         """
         This function internally registers events at a given viewer so that we can
         react if something is happening, e.g. layers are added/removed.
@@ -436,7 +436,7 @@ class WorkflowManager:
         #print("Layer selection changed", event)
 
 
-def _viewer_has_layer(viewer: Viewer, name: str) -> bool:
+def _viewer_has_layer(viewer: "napari.Viewer", name: str) -> bool:
     """
     Checks if a viewer contains a layer named as specified.
 
@@ -458,7 +458,7 @@ def _viewer_has_layer(viewer: Viewer, name: str) -> bool:
         return False
 
 
-def _get_layer_from_data(viewer: Union[Viewer, None], data: Any) -> Optional[Layer]:
+def _get_layer_from_data(viewer: "Union[napari.Viewer, None]", data: Any) -> Optional[Layer]:
     """
     Returns the layer in viewer that has the given data or None if such a layer doesn't exist.
     """
@@ -485,7 +485,7 @@ def _get_layer_from_data(viewer: Union[Viewer, None], data: Any) -> Optional[Lay
     return None
 
 
-def _generate_python_code(workflow: Workflow, viewer: Viewer, notebook: bool = False, use_napari:bool = True) -> str:
+def _generate_python_code(workflow: Workflow, viewer: "napari.Viewer", notebook: bool = False, use_napari:bool = True) -> str:
     """
     Takes a Workflow and a viewer an generates python code corresponding to the workflow.
     Precondition: The used functions must be compatible with Workflows and register their
@@ -680,7 +680,7 @@ def _generate_python_code(workflow: Workflow, viewer: Viewer, notebook: bool = F
 
     return complete_code
 
-def _viewer_add_image_and_notebook_screenshot(code: List[str], viewer: Viewer, notebook: bool, result_name: str, key: str) -> None:
+def _viewer_add_image_and_notebook_screenshot(code: List[str], viewer: "napari.Viewer", notebook: bool, result_name: str, key: str) -> None:
     import napari.layers
 
     # add code that shows the result in a layer
@@ -694,7 +694,7 @@ def _viewer_add_image_and_notebook_screenshot(code: List[str], viewer: Viewer, n
             code.append("napari.utils.nbscreenshot(viewer)")
         code.append("")
 
-def _layer_name_or_value(value: NDArray, viewer: Viewer)-> str | NDArray[Any]:
+def _layer_name_or_value(value: NDArray, viewer: "napari.Viewer")-> str | NDArray[Any]:
     """
     Checks if there is a layer in the viewer where layer.data == value. If so,
     it returns the name of the layer. Otherwise, it returns value.
@@ -724,7 +724,7 @@ def _layer_invalid(layer: Layer):
 
 
 # todo: this function should live in napari-time-slicer
-def _break_down_4d_to_2d_kwargs(arguments: Dict[str, Any], current_timepoint: int, viewer: Viewer) -> None:
+def _break_down_4d_to_2d_kwargs(arguments: Dict[str, Any], current_timepoint: int, viewer: "napari.Viewer") -> None:
     """
     Goes through a dictionary of arguments and identifies image data arguments with 4 dimensions.
     If there is any layer in the viewer where layer.data corresponds to this image, it assumes that
@@ -756,7 +756,7 @@ def _break_down_4d_to_2d_kwargs(arguments: Dict[str, Any], current_timepoint: in
 
 
 # todo: this function should live in napari-time-slicer
-def _break_down_4d_to_2d_args(arguments: List[Any], current_timepoint: int, viewer: Viewer) -> None:
+def _break_down_4d_to_2d_args(arguments: List[Any], current_timepoint: int, viewer: "napari.Viewer") -> None:
     """
         Goes through a list of arguments and identifies image data arguments with 4 dimensions.
         If there is any layer in the viewer where layer.data corresponds to this image, it assumes that
